@@ -1,4 +1,4 @@
-﻿# AI Prompts — Documentation
+﻿# AI Prompts — Documentation (Phase 1)
 
 ## Prompt 1: setup .cursorrules file for the project
 
@@ -6,7 +6,7 @@
 I am developing Databricks Medallion Architecture pipeline for an e-commerce dataset 
 for my engineering evaluation. Help me develop the .cursorrules file in tool-specific\cursor-workflow directory for the project.
 The project context:
-- The platform used is Databricks Community Edition
+- The platform uses Databricks Unity Catalog and Volumes
 - Languages used are Python, PySpark, SQL
 - Architecture follows Medallion Architecture (Bronze -> Silver -> Gold -> Dashboard)
 - Data is 3 CSV files - customers (10K rows), orders (100K rows), products (500 rows)
@@ -15,12 +15,12 @@ The project context:
 - Gold – 3 aggregations tables (sales by product, revenue by customer, customer segmentation)
 - Dashboard - Databricks SQL Dashboard with 3+ visualizations
 Rules for the .cursorrules file:
-1. The PySpark code should be compatible with Databricks Community Edition (no Unity Catalog, no Volumes)
+1. The PySpark code should use Databricks Unity Catalog and Volumes
 2. All tables should be of Delta Lake format
 3. All the Python code should adhere to PEP 8 rules
 4. All the SQL should be ANSI-compatible Spark SQL
 5. All functions should have the docstring
-6. Use DBFS paths to store data (dbfs:/FileStore/...)
+6. Use Volume paths under `/Volumes/ecommerce/medallion/data/`
 7. All scripts should include error handling and logging
 8. The data quality checks should FLAG bad rows (quality_check_result column added), but never delete them
 9. Idempotence (can be re-run) of all scripts
@@ -28,11 +28,11 @@ Rules for the .cursorrules file:
 **AI RESPONSE SUMMARY:**
 The .cursorrules file is in tool-specific/cursor-workflow/.cursorrules. A matching copy is at the repo root (.cursorrules) so Cursor actually loads it. Rationale is in tool-specific/cursor-workflow/cursor-rules-or-instructions.md.
 
-Each constraint is written as an instruction plus a BAD vs GOOD snippet so generated notebooks stay on Community Edition.
+Each constraint is written as an instruction plus a BAD vs GOOD snippet so generated notebooks stay aligned with Unity Catalog.
 
 Rule	What Cursor is told to do
-Community Edition
-Hive two-level names only; no Unity Catalog, no /Volumes/
+Unity Catalog
+Three-level names and `/Volumes/ecommerce/medallion/data/`
 Delta Lake
 Bronze/Silver/Gold as format("delta"), not Parquet/CSV sinks
 PEP 8
@@ -41,8 +41,8 @@ ANSI Spark SQL
 Standard JOIN/CAST/CASE; no TOP / GETDATE()
 Docstrings
 Google-style Args/Returns on every function
-DBFS
-dbfs:/FileStore/ecommerce/{raw,bronze,silver,gold}/
+Volumes
+/Volumes/ecommerce/medallion/data/{raw,bronze,silver,gold}/
 Logging
 logging + try/except that re-raises after logger.exception
 DQ flag, never delete
@@ -82,7 +82,7 @@ Help me create a requirements-analysis.md that covers:
 Documentation summary
 
 Wrote requirements-analysis.md with all seven requested sections.
-Problem framed as: keep bad rows auditable, then publish trustworthy Gold on Databricks Community Edition.
+Problem framed as: keep bad rows auditable, then publish trustworthy Gold on Databricks Unity Catalog.
 Functional reqs split by Bronze / Silver / Gold / Dashboard; NFRs cover performance, overwrite idempotency, and logging.
 Called out 460 listed defects vs ~700 total; assumed remaining issues are type/domain
 
@@ -116,10 +116,10 @@ Perfectly added the extra edge cases i have mentioned.
 **PROMPT SENT:**
 Based on the analysis of the requirements above, please assist me in creating a design-notes.md file with:
 1. Architecture Overview
-   - Dataflow: CSV -> DBFS Upload -> Bronze (Delta) -> Silver (Delta) -> Gold (Delta) -> Dashboard
+   - Dataflow: CSV -> Volume Upload -> Bronze (Delta) -> Silver (Delta) -> Gold (Delta) -> Dashboard
    - Describe the separation of concerns between layers
 2. Bronze Layer Design
-   - Path naming convention (e.g., dbfs:/FileStore/medallion/bronze/{table_name})
+   - Path naming convention (e.g., `/Volumes/ecommerce/medallion/data/bronze/{table_name}`)
    - Schema inference vs. schema definition - which to choose and why?
    - Metadata columns to add: ingestion_timestamp, source_file_name
    - Delta table properties
@@ -139,7 +139,7 @@ Please also create data-model.md that describes the schema of all tables in all 
 
 **AI RESPONSE SUMMARY:**
 Created design-notes.md (architecture, Bronze/Silver/Gold/dashboard) and data-model.md (all schemas).
-Bronze: explicit STRING schema + ingest metadata; paths under dbfs:/FileStore/ecommerce/.
+Bronze: explicit schema + ingest metadata; paths under `/Volumes/ecommerce/medallion/data/`.
 Silver: per-table Spark checks; PASS/FAIL columns + pipe details; one table keeps all rows; metrics Delta table.
 Gold: PASS + Completed, full overwrite; three aggregation schemas; dashboard SQL mapped to those tables.
 
@@ -228,8 +228,8 @@ Format:
 ## Task [N]: [Title]
 - **Layer:** Bronze/Silver/Gold/Dashboard
 - **File(s):** src/bronze/01_ingest_customers.py
-- **Input:** CSV file located at dbfs:/FileStore/medallion/raw/customers.csv
-- **Output:** Delta table at dbfs:/FileStore/medallion/bronze/customers
+- **Input:** CSV file located at `/Volumes/ecommerce/medallion/data/raw/customers.csv`
+- **Output:** Delta table at `/Volumes/ecommerce/medallion/data/bronze/customers`
 - **Acceptance Criteria:** 
   - Table contains 10,000 records
   - Schema conforms to data model
@@ -240,7 +240,7 @@ Format:
 Created tool-specific/cursor-workflow/task-breakdown.md with 19 dependency-ordered tasks covering:
 
 Shared utilities and sample-data generation
-Raw DBFS upload and three Bronze ingestions
+Raw Volume upload and three Bronze ingestions
 Four Silver quality checks, metrics, and validation
 Three Gold aggregations and reconciliation
 Dashboard SQL, setup, and validation
@@ -251,7 +251,7 @@ Documentation summary
 Created a 19-task implementation roadmap.
 Tasks follow Bronze → Silver → Gold → Dashboard.
 Included quality flags, metrics reporting, idempotency, and reconciliation.
-Used the project’s dbfs:/FileStore/ecommerce/ convention.
+Used the project’s `/Volumes/ecommerce/medallion/data/` convention.
 
 **YOUR EVALUATION:**
 The task breakdown structure looks good to me, nothing to add in this from my end , the model has provided the 19 tasks as per my given format.

@@ -1,4 +1,4 @@
-﻿# AI Prompts — Data Generation
+﻿# AI Prompts — Data Generation (Phase 2)
 
 ## Prompt 1: Initial Data Generation Script
 
@@ -72,7 +72,7 @@ Re-run:
 
 python -m pip install -r requirements.txt
 python src/data_generation/generate_sample_data.py
-Then upload data/*.csv to dbfs:/FileStore/ecommerce/raw/ for Bronze.
+Then upload `data/*.csv` to `/Volumes/ecommerce/medallion/data/raw/` for Bronze.
 
 Documentation summary
 

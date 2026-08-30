@@ -6,30 +6,30 @@
 customers.csv / orders.csv / products.csv
         │  (upload)
         ▼
-dbfs:/FileStore/ecommerce/raw/*.csv
-        │  Bronze: defined STRING schema + ingest metadata, no cleansing
+/Volumes/ecommerce/medallion/data/raw/*.csv
+        │  Bronze: explicit schema + ingest metadata, no cleansing
         ▼
-Delta  ecommerce.*_bronze
+Delta  ecommerce.medallion.bronze_*
         │  Silver: four quality checks, flag in place, metrics table
         ▼
-Delta  ecommerce.*_silver  +  ecommerce.quality_metrics
+Delta  ecommerce.medallion.*_silver  +  ecommerce.medallion.quality_metrics
         │  Gold: PASS + Completed only, full overwrite aggregations
         ▼
-Delta  ecommerce.sales_by_product
-       ecommerce.revenue_by_customer
-       ecommerce.customer_segmentation
+Delta  ecommerce.medallion.sales_by_product
+       ecommerce.medallion.revenue_by_customer
+       ecommerce.medallion.customer_segmentation
         │
         ▼
 Databricks SQL Dashboard (3+ visuals on Gold only)
 ```
 
-**Platform:** Databricks Community Edition, Hive database `ecommerce`, paths under `dbfs:/FileStore/ecommerce/`. No Unity Catalog, no Volumes.
+**Platform:** Databricks Unity Catalog. Catalog `ecommerce`, schema `medallion`, Volume `data`. Paths under `/Volumes/ecommerce/medallion/data/`.
 
 ### Separation of concerns
 
 | Layer | Owns | Must not do |
 | --- | --- | --- |
-| **Raw (DBFS)** | Immutable CSV extracts | Parsing, KPI logic |
+| **Raw (Volume)** | Immutable CSV extracts | Parsing, KPI logic |
 | **Bronze** | Faithful land: 1:1 with file rows, STRING columns, ingest lineage | Dedupe, type repair, FK repair, quality flags |
 | **Silver** | Audit: same grain as Bronze, four checks, `quality_check_result`, metrics | Delete/quarantine rows, compute dashboard KPIs |
 | **Gold** | Business grain: product / customer / segment metrics from **clean** orders | Re-ingest CSVs, hide Silver failures |
@@ -49,17 +49,17 @@ Canonical column lists, Spark types, and nullability live in [`data-model.md`](d
 
 ### Path naming convention
 
-Root: `dbfs:/FileStore/ecommerce/` (same pattern as `dbfs:/FileStore/medallion/{layer}/{table_name}`).
+Root: `/Volumes/ecommerce/medallion/data/` (`/Volumes/<catalog>/<schema>/<volume>/{layer}/...`).
 
-| Role | Path | Hive table |
+| Role | Path | UC table |
 | --- | --- | --- |
-| Raw CSV | `dbfs:/FileStore/ecommerce/raw/customers.csv` (and `orders.csv`, `products.csv`) | — |
-| Bronze Delta | `dbfs:/FileStore/ecommerce/bronze/customers` | `ecommerce.customers_bronze` |
-| | `dbfs:/FileStore/ecommerce/bronze/orders` | `ecommerce.orders_bronze` |
-| | `dbfs:/FileStore/ecommerce/bronze/products` | `ecommerce.products_bronze` |
-| Silver Delta | `dbfs:/FileStore/ecommerce/silver/{table_name}` | `ecommerce.customers_silver`, `orders_silver`, `products_silver` |
-| Metrics | `dbfs:/FileStore/ecommerce/silver/quality_metrics` | `ecommerce.quality_metrics` |
-| Gold Delta | `dbfs:/FileStore/ecommerce/gold/{table_name}` | `ecommerce.sales_by_product`, `revenue_by_customer`, `customer_segmentation` |
+| Raw CSV | `/Volumes/ecommerce/medallion/data/raw/customers.csv` (and `orders.csv`, `products.csv`) | — |
+| Bronze Delta | `/Volumes/ecommerce/medallion/data/bronze/customers` | `ecommerce.medallion.bronze_customers` |
+| | `/Volumes/ecommerce/medallion/data/bronze/orders` | `ecommerce.medallion.bronze_orders` |
+| | `/Volumes/ecommerce/medallion/data/bronze/products` | `ecommerce.medallion.bronze_products` |
+| Silver Delta | `/Volumes/ecommerce/medallion/data/silver/{table_name}` | `ecommerce.medallion.customers_silver`, `orders_silver`, `products_silver` |
+| Metrics | `/Volumes/ecommerce/medallion/data/silver/quality_metrics` | `ecommerce.medallion.quality_metrics` |
+| Gold Delta | `/Volumes/ecommerce/medallion/data/gold/{table_name}` | `ecommerce.medallion.sales_by_product`, `revenue_by_customer`, `customer_segmentation` |
 
 `{table_name}` is the entity or gold subject, not a date partition (full daily refresh).
 
@@ -82,16 +82,16 @@ Append only; never overwrite source fields:
 | Column | Type | Value |
 | --- | --- | --- |
 | `ingestion_timestamp` | `TIMESTAMP` | `current_timestamp()` at write (timezone-naive; cluster TZ documented as session default, dates in the payload stay calendar dates) |
-| `source_file_name` | `STRING` | e.g. `dbfs:/FileStore/ecommerce/raw/orders.csv` |
+| `source_file_name` | `STRING` | e.g. `customers.csv` or the Volume path |
 
 ### Delta table properties
 
 - Format: Delta; `mode("overwrite")` + `option("overwriteSchema", "true")`.
-- `CREATE DATABASE IF NOT EXISTS ecommerce`.
-- `save` to the DBFS location **and** `saveAsTable` / `CREATE TABLE ... USING DELTA LOCATION` so SQL dashboards can see Hive names.
-- Comments on tables (`ecommerce bronze customers extract`).
+- `CREATE SCHEMA IF NOT EXISTS ecommerce.medallion` and
+  `CREATE VOLUME IF NOT EXISTS ecommerce.medallion.data`.
+- `save` to the Volume location **and** `CREATE TABLE IF NOT EXISTS ... USING DELTA LOCATION` so SQL dashboards can use `ecommerce.medallion.*`.
+- Comments on tables (`ecommerce medallion bronze customers extract`).
 - No partitioning (10K / 100K / 500 is small; partitioning `customer_id` would hurt).
-- Do not enable Unity Catalog or deletion vectors that CE cannot manage; default Delta log is enough.
 
 ---
 
@@ -144,7 +144,7 @@ Rationale: FR-S1 (100% of Bronze rows), evaluators can `SELECT * WHERE quality_c
 
 ### Quality metrics report format
 
-Delta table `ecommerce.quality_metrics`, grain `(batch_timestamp, table_name, check_name)`.
+Delta table `ecommerce.medallion.quality_metrics`, grain `(batch_timestamp, table_name, check_name)`.
 
 | Column | Meaning |
 | --- | --- |
@@ -202,31 +202,31 @@ Visuals query **Gold only**. At least three charts.
 ```sql
 -- Viz 1: top products
 SELECT product_name, category, units_sold, gross_revenue, gross_margin
-FROM ecommerce.sales_by_product
+FROM ecommerce.medallion.sales_by_product
 ORDER BY gross_revenue DESC
 LIMIT 15;
 
 -- Viz 2: segment mix
 SELECT customer_segment, customer_count, total_revenue, pct_of_revenue
-FROM ecommerce.customer_segmentation
+FROM ecommerce.medallion.customer_segmentation
 ORDER BY total_revenue DESC;
 
 -- Viz 3: country (from customer grain)
 SELECT country,
        COUNT(*) AS customer_count,
        SUM(gross_revenue) AS gross_revenue
-FROM ecommerce.revenue_by_customer
+FROM ecommerce.medallion.revenue_by_customer
 GROUP BY country
 ORDER BY gross_revenue DESC;
 
 -- Optional: top customers
 SELECT customer_id, customer_name, customer_segment, gross_revenue, lifetime_value
-FROM ecommerce.revenue_by_customer
+FROM ecommerce.medallion.revenue_by_customer
 ORDER BY gross_revenue DESC
 LIMIT 20;
 ```
 
-If Databricks SQL Warehouse is unavailable on Community Edition, the same queries run in a notebook (`display`) / SQL editor against Hive tables — same three questions.
+If a SQL warehouse is unavailable, the same queries run in a notebook (`display`) against Unity Catalog tables — same three questions.
 
 ---
 

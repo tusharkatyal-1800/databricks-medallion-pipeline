@@ -1,0 +1,1 @@
+"""Shared Databricks pipeline configuration."""

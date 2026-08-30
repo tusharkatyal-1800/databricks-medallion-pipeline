@@ -1,6 +1,6 @@
 ﻿# Data Model
 
-Hive database: `ecommerce`.  
+Unity Catalog: catalog `ecommerce`, schema `medallion`.  
 Bronze/Silver source fields are **STRING** so planted defects are not coerced to null. Gold uses numeric/date types after Silver `PASS` filters.  
 `ingestion_timestamp` / `source_file_name` are pipeline metadata (not in the CSVs).
 
@@ -8,9 +8,9 @@ Bronze/Silver source fields are **STRING** so planted defects are not coerced to
 
 ## Bronze Layer Tables
 
-Locations: `dbfs:/FileStore/ecommerce/bronze/{customers|orders|products}`.
+Locations: `/Volumes/ecommerce/medallion/data/bronze/{customers|orders|products}`.
 
-### `ecommerce.customers_bronze`
+### `ecommerce.medallion.bronze_customers`
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
@@ -22,11 +22,11 @@ Locations: `dbfs:/FileStore/ecommerce/bronze/{customers|orders|products}`.
 | `customer_segment` | `STRING` | YES | Expected `Premium` / `Standard` / `Basic`; invalid values possible. |
 | `lifetime_value` | `STRING` | YES | Source LTV as text (may be non-numeric). |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
-| `source_file_name` | `STRING` | NO | Full DBFS path of `customers.csv`. |
+| `source_file_name` | `STRING` | NO | Source file name or Volume path of `customers.csv`. |
 
 Grain: one row per CSV record (not necessarily unique on `customer_id`). Expected ~10,010 rows if 10 duplicate-key extra rows are appended.
 
-### `ecommerce.orders_bronze`
+### `ecommerce.medallion.bronze_orders`
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
@@ -40,11 +40,11 @@ Grain: one row per CSV record (not necessarily unique on `customer_id`). Expecte
 | `order_status` | `STRING` | YES | Expected `Pending` / `Completed` / `Cancelled`. |
 | `payment_date` | `STRING` | YES | Nullable by design; text date when present. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
-| `source_file_name` | `STRING` | NO | Full DBFS path of `orders.csv`. |
+| `source_file_name` | `STRING` | NO | Source file name or Volume path of `orders.csv`. |
 
 Grain: one row per CSV record. Expected ~100,020 rows with 20 extra duplicate-key rows.
 
-### `ecommerce.products_bronze`
+### `ecommerce.medallion.bronze_products`
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ Grain: one row per CSV record. Expected ~100,020 rows with 20 extra duplicate-ke
 | `stock_quantity` | `STRING` | YES | On-hand units as text. |
 | `reorder_level` | `STRING` | YES | Reorder threshold as text. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
-| `source_file_name` | `STRING` | NO | Full DBFS path of `products.csv`. |
+| `source_file_name` | `STRING` | NO | Source file name or Volume path of `products.csv`. |
 
 Grain: one row per CSV record (~500 rows).
 
@@ -64,7 +64,7 @@ Grain: one row per CSV record (~500 rows).
 
 ## Silver Layer Tables
 
-Locations: `dbfs:/FileStore/ecommerce/silver/{table_name}`.  
+Locations: `/Volumes/ecommerce/medallion/data/silver/{table_name}`.  
 Each entity table = **all Bronze rows** (same count) + quality columns. Original payload columns stay `STRING`.
 
 Shared quality columns (all three entity tables):
@@ -77,7 +77,7 @@ Shared quality columns (all three entity tables):
 | `referential_check` | `STRING` | NO | `PASS` / `FAIL` on orders; `N/A` on customers and products. |
 | `quality_check_result` | `STRING` | NO | `PASS` if all applicable checks pass; else pipe-delimited fail tokens, e.g. `COMPLETENESS_FAIL\|REFERENTIAL_INTEGRITY_FAIL`. |
 
-### `ecommerce.customers_silver`
+### `ecommerce.medallion.customers_silver`
 
 All `customers_bronze` columns **plus** the shared quality columns.
 
@@ -85,7 +85,7 @@ All `customers_bronze` columns **plus** the shared quality columns.
 **Uniqueness key:** `customer_id`.  
 **Type / domain (when present):** email pattern; `signup_date` parses as date; `customer_segment` in `Premium|Standard|Basic`; `lifetime_value` numeric and ≥ 0.
 
-### `ecommerce.orders_silver`
+### `ecommerce.medallion.orders_silver`
 
 All `orders_bronze` columns **plus** the shared quality columns.
 
@@ -94,7 +94,7 @@ All `orders_bronze` columns **plus** the shared quality columns.
 **Type / domain:** dates parse (calendar, no TZ shift); `quantity` integer **> 0**; `unit_price` / `total_amount` numeric ≥ 0; `total_amount = quantity * unit_price` after successful parse; `order_status` in `Pending|Completed|Cancelled`; if status is `Completed`, `payment_date` must be present and parseable.  
 **Referential:** non-null `customer_id` exists on at least one `customers` row; non-null `product_id` exists on at least one `products` row.
 
-### `ecommerce.products_silver`
+### `ecommerce.medallion.products_silver`
 
 All `products_bronze` columns **plus** the shared quality columns.
 
@@ -102,9 +102,9 @@ All `products_bronze` columns **plus** the shared quality columns.
 **Uniqueness key:** `product_id`.  
 **Type / domain:** `price` / `cost` numeric ≥ 0; `stock_quantity` / `reorder_level` integer ≥ 0.
 
-### `ecommerce.quality_metrics`
+### `ecommerce.medallion.quality_metrics`
 
-Location: `dbfs:/FileStore/ecommerce/silver/quality_metrics`.  
+Location: `/Volumes/ecommerce/medallion/data/silver/quality_metrics`.  
 Grain: one row per `(batch_timestamp, table_name, check_name)`.
 
 | Column | Data type | Nullable | Description |
@@ -124,10 +124,10 @@ Grain: one row per `(batch_timestamp, table_name, check_name)`.
 
 ## Gold Layer Tables
 
-Locations: `dbfs:/FileStore/ecommerce/gold/{table_name}`.  
+Locations: `/Volumes/ecommerce/medallion/data/gold/{table_name}`.  
 Population: Silver **PASS** orders with `order_status = 'Completed'`, joined to PASS customers/products. Full **overwrite** each run.
 
-### `ecommerce.sales_by_product`
+### `ecommerce.medallion.sales_by_product`
 
 Grain: `product_id`.
 
@@ -144,7 +144,7 @@ Grain: `product_id`.
 | `avg_unit_price` | `DECIMAL(18,2)` | YES | `gross_revenue / units_sold` when units > 0. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Gold build time. |
 
-### `ecommerce.revenue_by_customer`
+### `ecommerce.medallion.revenue_by_customer`
 
 Grain: `customer_id`.
 
@@ -161,7 +161,7 @@ Grain: `customer_id`.
 | `lifetime_value` | `DECIMAL(18,2)` | YES | CSV LTV (may differ from `gross_revenue`). |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Gold build time. |
 
-### `ecommerce.customer_segmentation`
+### `ecommerce.medallion.customer_segmentation`
 
 Grain: `customer_segment`.
 

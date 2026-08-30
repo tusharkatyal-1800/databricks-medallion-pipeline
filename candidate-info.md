@@ -9,7 +9,7 @@
 **Submission Date:** 2026-08-31
 
 ## Tools & Environment
-- Databricks: Community Edition
+- Databricks: Unity Catalog + Volumes (`/Volumes/ecommerce/medallion/data/`)
 - Languages: Python, PySpark, SQL
 - Libraries: PySpark, Delta Lake, pandas, faker
 - AI Tool: Cursor

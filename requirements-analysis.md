@@ -4,22 +4,22 @@
 
 The business already has daily extracts of customers, products, and orders, but those files cannot be trusted as-is for reporting. Keys collide, emails and foreign keys go missing, and some orders point at customers or products that do not exist. If those files are loaded straight into a dashboard, revenue, segment mix, and product rank will be wrong, and nobody will be able to explain *which* rows caused the distortion.
 
-This project is a Community Edition Medallion pipeline that makes that feed usable without hiding the dirt. Bronze is a faithful landing zone: the three CSVs become Delta tables with no business cleansing. Silver keeps every row, runs four quality checks, stamps `quality_check_result`, and publishes a metrics report so failures stay auditable. Gold then builds three decision tables (sales by product, revenue by customer, customer segmentation) that analysts can chart. The dashboard is the proof that Gold is queryable, not a second transformation layer.
+This project is a Unity Catalog Medallion pipeline that makes that feed usable without hiding the dirt. Bronze is a faithful landing zone: the three CSVs become Delta tables with no business cleansing. Silver keeps every row, runs four quality checks, stamps `quality_check_result`, and publishes a metrics report so failures stay auditable. Gold then builds three decision tables (sales by product, revenue by customer, customer segmentation) that analysts can chart. The dashboard is the proof that Gold is queryable, not a second transformation layer.
 
-The engineering constraint is as important as the business one: Databricks Community Edition (Hive metastore, DBFS `FileStore`, no Unity Catalog, no Volumes). Jobs must be re-runnable, logged, and written in PEP 8 PySpark plus ANSI Spark SQL.
+The engineering constraint is as important as the business one: Databricks Unity Catalog with a Volume at `/Volumes/ecommerce/medallion/data/`. Jobs must be re-runnable, logged, and written in PEP 8 PySpark plus ANSI Spark SQL.
 
 ## Functional Requirements
 
 ### Shared (all layers)
 
-- FR-1: Persist every curated dataset as Delta under `dbfs:/FileStore/ecommerce/`.
-- FR-2: Use Hive two-level names (for example `ecommerce.orders_bronze`), never Unity Catalog three-level names or `/Volumes/` paths.
+- FR-1: Persist every curated dataset as Delta under `/Volumes/ecommerce/medallion/data/`.
+- FR-2: Use Unity Catalog three-level names (for example `ecommerce.medallion.bronze_orders`) and Volume paths (`/Volumes/...`).
 - FR-3: Generate synthetic source CSVs at the stated volumes, with about 700 planted quality defects (see Assumptions for how the listed defects map to that total).
 - FR-4: Every notebook/script is idempotent: a second run on the same input replaces the same Delta tables rather than appending duplicates.
 
 ### Bronze — raw ingestion
 
-- FR-B1: Read `customers.csv`, `orders.csv`, and `products.csv` from `dbfs:/FileStore/ecommerce/raw/`.
+- FR-B1: Read `customers.csv`, `orders.csv`, and `products.csv` from `/Volumes/ecommerce/medallion/data/raw/`.
 - FR-B2: Write one Delta table per source (`customers_bronze`, `orders_bronze`, `products_bronze`) with source column names unchanged.
 - FR-B3: Apply no business transformations (no type coercion for cleansing, no dropping nulls, no dedupe, no FK repair). Optional ingest metadata only (`ingest_timestamp`, `source_file_name`) if it does not rewrite source fields.
 - FR-B4: Bronze row counts must match the CSV line counts (header excluded), including defective rows.
@@ -53,14 +53,14 @@ The engineering constraint is as important as the business one: Databricks Commu
 
 ### Performance
 
-- NFR-P1: Target data volumes (10K / 100K / 500 plus planted extras from duplicates) must complete Bronze → Silver → Gold on a Community Edition cluster in one interactive session without job-orchestration features that CE does not provide.
+- NFR-P1: Target data volumes (10K / 100K / 500 plus planted extras from duplicates) must complete Bronze → Silver → Gold on a Databricks cluster in one interactive session.
 - NFR-P2: Prefer Spark-native operations (DataFrame / Spark SQL). Do not collect 100K-row datasets to the driver except for small metric summaries.
 - NFR-P3: Partitioning is optional at this scale; if used, partition Gold by low-cardinality keys only (for example `order_date` month or `category`), never by `customer_id` at 10K+ cardinality without justification.
 
 ### Idempotency
 
 - NFR-I1: Writes use `mode("overwrite")` with `overwriteSchema` where schema can change, `CREATE OR REPLACE TABLE`, or Delta `MERGE` on a stable key. No `append` to Bronze/Silver/Gold for full daily rebuilds.
-- NFR-I2: `CREATE DATABASE IF NOT EXISTS` / `dbutils.fs.mkdirs` so a first run and a tenth run both succeed.
+- NFR-I2: `CREATE SCHEMA IF NOT EXISTS` / `CREATE VOLUME IF NOT EXISTS` / `dbutils.fs.mkdirs` so a first run and a tenth run both succeed.
 - NFR-I3: Re-running the generator must recreate the same planted-issue *counts* (not necessarily the same random names if a seed is unset; see Assumptions).
 
 ### Logging and operability
@@ -77,7 +77,7 @@ The engineering constraint is as important as the business one: Databricks Commu
 
 ## Assumptions
 
-1. **Platform:** Databricks Community Edition, Hive metastore, `spark` / `dbutils` in notebooks, data on `dbfs:/FileStore/ecommerce/{raw,bronze,silver,gold}/`.
+1. **Platform:** Databricks Unity Catalog, `spark` / `dbutils` in notebooks, data on `/Volumes/ecommerce/medallion/data/{raw,bronze,silver,gold}/`.
 2. **Daily batch, full refresh:** “Daily sales data” is modeled as a full overwrite of the three extracts, not incremental CDC.
 3. **Nullable `payment_date`:** Null is valid for `Pending` (and possibly `Cancelled`). It is a type/domain issue only if `Completed` has a null or unparseable `payment_date` (clarification below).
 4. **Flag ≠ drop:** Silver never removes rows. Gold filters to `PASS` for financial KPIs so dashboards are not inflated by duplicates/orphans.
@@ -87,7 +87,7 @@ The engineering constraint is as important as the business one: Databricks Commu
 8. **Revenue:** Sum of `total_amount` for `Completed` + `PASS` orders, unless clarified otherwise. `lifetime_value` on customers may not equal computed revenue; Gold can expose both.
 9. **Products:** No planted completeness/uniqueness issues required beyond what type checks introduce; still run all four checks on products.
 10. **Generator seed:** A fixed random seed is used so re-runs of data generation are stable for the evaluation.
-11. **Database name:** `ecommerce` (Hive). Table names: `{entity}_{bronze|silver}` and gold names `sales_by_product`, `revenue_by_customer`, `customer_segmentation`.
+11. **Catalog/schema:** `ecommerce.medallion`. Table names: `bronze_*` / `*_silver` and gold names `sales_by_product`, `revenue_by_customer`, `customer_segmentation`.
 
 ## Edge Cases
 
@@ -110,14 +110,14 @@ The engineering constraint is as important as the business one: Databricks Commu
 | Negative `quantity` (or negative `unit_price` / `price` / `cost` / `stock_quantity` where the field is a count or money amount) | Type/domain FAIL; keep the row in Silver with flags. Do not abs() or drop it. Gold PASS-only KPIs exclude it so revenue/units are not reduced by bad signs. `quantity` must be a positive integer for PASS. |
 | Extra/missing CSV columns | Fail fast after schema validation; do not infer-and-continue with wrong types. |
 | Unicode in `customer_name` / `product_name` | Allowed; store as string. |
-| Community Edition cluster restart mid-job | Re-run from Bronze; overwrite makes partial Gold from a previous success replace cleanly. |
-| Dashboard warehouse vs all-purpose cluster | Queries must work on tables registered in the Hive metastore from the notebook cluster. |
+| Cluster restart mid-job | Re-run from Bronze; overwrite makes partial Gold from a previous success replace cleanly. |
+| Dashboard warehouse vs all-purpose cluster | Queries must work on Unity Catalog tables (`ecommerce.medallion.*`). |
 
 ## Acceptance Criteria per Layer
 
 ### Bronze
 
-- [ ] Three Delta tables exist at `dbfs:/FileStore/ecommerce/bronze/` (or registered `ecommerce.*_bronze`).
+- [ ] Three Delta tables exist at `/Volumes/ecommerce/medallion/data/bronze/` (or registered `ecommerce.medallion.bronze_*`).
 - [ ] Column names match the CSV headers listed in the business context.
 - [ ] Row counts equal CSV records, including planted defects.
 - [ ] Re-run does not increase row counts (overwrite, not append).
@@ -150,4 +150,4 @@ The engineering constraint is as important as the business one: Databricks Commu
 
 - [ ] Functions have docstrings; Python is PEP 8; SQL is Spark ANSI-style.
 - [ ] Logs show counts and failures; a forced missing-path error is logged and raised.
-- [ ] Entire pipeline re-runnable on Community Edition without Unity Catalog.
+- [ ] Entire pipeline re-runnable using the canonical Unity Catalog Volume.

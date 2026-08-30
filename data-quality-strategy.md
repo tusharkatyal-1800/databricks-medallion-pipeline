@@ -166,16 +166,16 @@ Only **non-null, non-blank** FKs can be orphans. Null FKs are completeness, not 
 ```sql
 -- Orphan customers: order FK not in customers
 SELECT o.*
-FROM ecommerce.orders_bronze o
+FROM ecommerce.medallion.bronze_orders o
 LEFT ANTI JOIN (
   SELECT DISTINCT customer_id
-  FROM ecommerce.customers_bronze
+  FROM ecommerce.medallion.bronze_customers
   WHERE customer_id IS NOT NULL AND trim(customer_id) <> ''
 ) c
   ON o.customer_id = c.customer_id
 WHERE o.customer_id IS NOT NULL AND trim(o.customer_id) <> '';
 
--- Orphan products: same pattern on product_id vs products_bronze
+-- Orphan products: same pattern on product_id vs bronze_products
 ```
 
 Stamp two booleans, then:
@@ -273,7 +273,7 @@ WHERE quality_check_result LIKE '%COMPLETENESS_FAIL%'
 
 ## Quality Metrics Report
 
-Delta table `ecommerce.quality_metrics`. Grain: `(batch_timestamp, table_name, check_name)`. One row per check per Silver table per run.
+Delta table `ecommerce.medallion.quality_metrics`. Grain: `(batch_timestamp, table_name, check_name)`. One row per check per Silver table per run.
 
 **Report structure (required columns):**
 

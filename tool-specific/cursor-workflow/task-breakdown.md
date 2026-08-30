@@ -1,21 +1,21 @@
 ﻿# Task Breakdown for Cursor
 
 Each task is scoped for one 30–60 minute Cursor session. The implementation
-uses Databricks Community Edition, the Hive database `ecommerce`, and DBFS
-paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
+uses Databricks Unity Catalog (`ecommerce.medallion`), and Volume
+paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependency.
 
 ## Task 1: Create Shared Databricks Configuration and Utilities
 - **Layer:** Bronze
 - **File(s):** `src/common/config.py`, `src/common/io_utils.py`
 - **Input:** Path and table conventions from `design-notes.md` and schemas from
   `data-model.md`
-- **Output:** Reusable constants, DBFS/database setup, input validation, logging,
+- **Output:** Reusable constants, Unity Catalog setup, input validation, logging,
   and idempotent Delta-write helpers
 - **Acceptance Criteria:**
   - Defines raw, Bronze, Silver, and Gold paths under
-    `dbfs:/FileStore/ecommerce/`
-  - Defines two-level Hive table names under `ecommerce`
-  - Creates required DBFS directories and database if missing
+    `/Volumes/ecommerce/medallion/data/`
+  - Defines three-level Unity Catalog table names under `ecommerce.medallion`
+  - Creates required Volume folders and schema/volume if missing
   - Validates that required files, rows, and columns exist
   - Delta helper uses overwrite and `overwriteSchema`
   - I/O errors are logged with context and re-raised
@@ -28,7 +28,7 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 - **Input:** E-commerce schemas and intentional-error counts from
   `requirements-analysis.md` and `data-quality-strategy.md`
 - **Output:** `customers.csv`, `orders.csv`, and `products.csv` ready for upload
-  to `dbfs:/FileStore/ecommerce/raw/`
+  to `/Volumes/ecommerce/medallion/data/raw/`
 - **Acceptance Criteria:**
   - Uses a fixed random seed so repeated generation is reproducible
   - Produces approximately 10,000 base customers, 100,000 base orders, and
@@ -47,9 +47,9 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 - **Layer:** Bronze
 - **File(s):** `src/bronze/01_upload_raw_files.py`
 - **Input:** Locally generated `customers.csv`, `orders.csv`, and `products.csv`
-- **Output:** Files at `dbfs:/FileStore/ecommerce/raw/{file_name}.csv`
+- **Output:** Files at `/Volumes/ecommerce/medallion/data/raw/{file_name}.csv`
 - **Acceptance Criteria:**
-  - All three files exist under the canonical raw DBFS path
+  - All three files exist under the canonical raw Volume path
   - A missing, zero-byte, or header-only required CSV causes a logged error
   - CSV headers match the source schemas in `data-model.md`
   - Re-uploading the same source replaces it rather than creating a duplicate
@@ -60,10 +60,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 4: Ingest Customers into Bronze
 - **Layer:** Bronze
 - **File(s):** `src/bronze/02_ingest_customers.py`
-- **Input:** `dbfs:/FileStore/ecommerce/raw/customers.csv`
+- **Input:** `/Volumes/ecommerce/medallion/data/raw/customers.csv`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/bronze/customers` and table
-  `ecommerce.customers_bronze`
+  `/Volumes/ecommerce/medallion/data/bronze/customers` and table
+  `ecommerce.medallion.bronze_customers`
 - **Acceptance Criteria:**
   - Uses an explicit all-STRING source schema; schema inference is disabled
   - Preserves every CSV record and source value without cleansing or dedupe
@@ -77,10 +77,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 5: Ingest Products into Bronze
 - **Layer:** Bronze
 - **File(s):** `src/bronze/03_ingest_products.py`
-- **Input:** `dbfs:/FileStore/ecommerce/raw/products.csv`
+- **Input:** `/Volumes/ecommerce/medallion/data/raw/products.csv`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/bronze/products` and table
-  `ecommerce.products_bronze`
+  `/Volumes/ecommerce/medallion/data/bronze/products` and table
+  `ecommerce.medallion.bronze_products`
 - **Acceptance Criteria:**
   - Uses the explicit all-STRING products schema
   - Preserves all 500 source rows without cleansing
@@ -92,9 +92,9 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 6: Ingest Orders into Bronze
 - **Layer:** Bronze
 - **File(s):** `src/bronze/04_ingest_orders.py`
-- **Input:** `dbfs:/FileStore/ecommerce/raw/orders.csv`
-- **Output:** Delta data at `dbfs:/FileStore/ecommerce/bronze/orders`
-  and table `ecommerce.orders_bronze`
+- **Input:** `/Volumes/ecommerce/medallion/data/raw/orders.csv`
+- **Output:** Delta data at `/Volumes/ecommerce/medallion/data/bronze/orders`
+  and table `ecommerce.medallion.bronze_orders`
 - **Acceptance Criteria:**
   - Uses an explicit all-STRING orders schema
   - Preserves nulls, orphans, negative values, malformed dates, and duplicates
@@ -138,10 +138,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 9: Build the Customers Silver Table
 - **Layer:** Silver
 - **File(s):** `src/silver/01_process_customers.py`
-- **Input:** `ecommerce.customers_bronze`
+- **Input:** `ecommerce.medallion.bronze_customers`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/silver/customers` and table
-  `ecommerce.customers_silver`
+  `/Volumes/ecommerce/medallion/data/silver/customers` and table
+  `ecommerce.medallion.customers_silver`
 - **Acceptance Criteria:**
   - Runs completeness on `email`, uniqueness on `customer_id`, and documented
     email/date/segment/LTV type checks
@@ -156,10 +156,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 10: Build the Products Silver Table
 - **Layer:** Silver
 - **File(s):** `src/silver/02_process_products.py`
-- **Input:** `ecommerce.products_bronze`
+- **Input:** `ecommerce.medallion.bronze_products`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/silver/products` and table
-  `ecommerce.products_silver`
+  `/Volumes/ecommerce/medallion/data/silver/products` and table
+  `ecommerce.medallion.products_silver`
 - **Acceptance Criteria:**
   - Runs completeness and uniqueness on product fields
   - Validates positive price/cost and non-negative integer stock/reorder values
@@ -171,10 +171,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 11: Build the Orders Silver Table
 - **Layer:** Silver
 - **File(s):** `src/silver/03_process_orders.py`
-- **Input:** `ecommerce.orders_bronze`,
-  `ecommerce.customers_bronze`, and `ecommerce.products_bronze`
-- **Output:** Delta data at `dbfs:/FileStore/ecommerce/silver/orders`
-  and table `ecommerce.orders_silver`
+- **Input:** `ecommerce.medallion.bronze_orders`,
+  `ecommerce.medallion.bronze_customers`, and `ecommerce.medallion.bronze_products`
+- **Output:** Delta data at `/Volumes/ecommerce/medallion/data/silver/orders`
+  and table `ecommerce.medallion.orders_silver`
 - **Acceptance Criteria:**
   - Detects 100 null customer IDs and 200 null product IDs, accounting for any
     deliberate overlap in row-level counts
@@ -191,11 +191,11 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 12: Generate the Silver Quality Metrics Report
 - **Layer:** Silver
 - **File(s):** `src/silver/04_build_quality_metrics.py`
-- **Input:** `ecommerce.customers_silver`,
-  `ecommerce.orders_silver`, and `ecommerce.products_silver`
+- **Input:** `ecommerce.medallion.customers_silver`,
+  `ecommerce.medallion.orders_silver`, and `ecommerce.medallion.products_silver`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/silver/quality_metrics` and table
-  `ecommerce.quality_metrics`
+  `/Volumes/ecommerce/medallion/data/silver/quality_metrics` and table
+  `ecommerce.medallion.quality_metrics`
 - **Acceptance Criteria:**
   - Produces one row per table/check/run
   - Includes `check_name`, `total_rows`, `passed`, `failed`, and
@@ -211,7 +211,7 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 13: Validate Silver Retention and Quality Results
 - **Layer:** Silver
 - **File(s):** `src/silver/05_validate_silver.py`
-- **Input:** All Bronze/Silver tables and `ecommerce.quality_metrics`
+- **Input:** All Bronze/Silver tables and `ecommerce.medallion.quality_metrics`
 - **Output:** Logged Silver reconciliation and quality-test results
 - **Acceptance Criteria:**
   - Confirms Bronze and Silver row counts match per entity
@@ -227,11 +227,11 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 14: Build Sales by Product
 - **Layer:** Gold
 - **File(s):** `src/gold/01_sales_by_product.py`
-- **Input:** `ecommerce.orders_silver` and
-  `ecommerce.products_silver`
+- **Input:** `ecommerce.medallion.orders_silver` and
+  `ecommerce.medallion.products_silver`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/gold/sales_by_product` and table
-  `ecommerce.sales_by_product`
+  `/Volumes/ecommerce/medallion/data/gold/sales_by_product` and table
+  `ecommerce.medallion.sales_by_product`
 - **Acceptance Criteria:**
   - Uses only `PASS` and `Completed` orders joined to PASS products
   - Produces one row per `product_id`
@@ -244,11 +244,11 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 15: Build Revenue by Customer
 - **Layer:** Gold
 - **File(s):** `src/gold/02_revenue_by_customer.py`
-- **Input:** `ecommerce.orders_silver` and
-  `ecommerce.customers_silver`
+- **Input:** `ecommerce.medallion.orders_silver` and
+  `ecommerce.medallion.customers_silver`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/gold/revenue_by_customer` and table
-  `ecommerce.revenue_by_customer`
+  `/Volumes/ecommerce/medallion/data/gold/revenue_by_customer` and table
+  `ecommerce.medallion.revenue_by_customer`
 - **Acceptance Criteria:**
   - Uses only `PASS` and `Completed` orders joined to PASS customers
   - Produces one row per `customer_id`
@@ -261,10 +261,10 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 16: Build Customer Segmentation
 - **Layer:** Gold
 - **File(s):** `src/gold/03_customer_segmentation.py`
-- **Input:** `ecommerce.revenue_by_customer`
+- **Input:** `ecommerce.medallion.revenue_by_customer`
 - **Output:** Delta data at
-  `dbfs:/FileStore/ecommerce/gold/customer_segmentation` and table
-  `ecommerce.customer_segmentation`
+  `/Volumes/ecommerce/medallion/data/gold/customer_segmentation` and table
+  `ecommerce.medallion.customer_segmentation`
 - **Acceptance Criteria:**
   - Produces at most one row for each Premium, Standard, and Basic segment
   - Includes customer count, completed order count, total revenue, average
@@ -291,16 +291,16 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 ## Task 18: Create Dashboard SQL Queries
 - **Layer:** Dashboard
 - **File(s):** `src/dashboard/dashboard_queries.sql`
-- **Input:** `ecommerce.sales_by_product`,
-  `ecommerce.revenue_by_customer`, and
-  `ecommerce.customer_segmentation`
+- **Input:** `ecommerce.medallion.sales_by_product`,
+  `ecommerce.medallion.revenue_by_customer`, and
+  `ecommerce.medallion.customer_segmentation`
 - **Output:** ANSI-compatible Spark SQL queries for dashboard visualizations
 - **Acceptance Criteria:**
   - Includes top products by revenue query
   - Includes revenue and customer count by segment query
   - Includes revenue by country or top customers query
   - Includes an optional margin-by-category query
-  - Queries use Gold tables only and run without Unity Catalog syntax
+  - Queries use Gold tables only and use Unity Catalog three-level names
   - Results have clear chart labels, deterministic ordering, and sensible
     limits
 - **Dependencies:** Task 17
@@ -310,7 +310,7 @@ paths under `dbfs:/FileStore/ecommerce/`. Tasks are ordered by dependency.
 - **File(s):** `src/dashboard/dashboard_setup.md`,
   `src/dashboard/dashboard_validation.sql`
 - **Input:** Queries from Task 18 and the three Gold Delta tables
-- **Output:** Databricks SQL Dashboard (or documented Community Edition
+- **Output:** Databricks SQL Dashboard (or notebook visualization fallback)
   notebook visualization fallback) with at least three visualizations
 - **Acceptance Criteria:**
   - Creates at least three visuals: top products, revenue by segment, and
