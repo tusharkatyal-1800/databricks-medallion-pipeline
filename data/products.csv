@@ -1,0 +1,501 @@
+product_id,product_name,category,price,cost,stock_quantity,reorder_level
+1,Wireless Bluetooth Headphones 1,Electronics,1559.21,741.48,2165,173
+2,Classic Cotton T-Shirt 2,Clothing,178.88,60.4,2632,196
+3,Ceramic Table Lamp 3,Home & Garden,611.78,375.89,2566,34
+4,Hardcover Mystery Novel 4,Books,38.78,17.39,912,187
+5,Yoga Mat with Carry Strap 5,Sports,389.88,245.28,2727,94
+6,Vitamin C Face Serum 6,Beauty,47.09,24.57,4440,22
+7,Wooden Building Block Set 7,Toys,125.52,69.37,826,154
+8,Organic Coffee Beans 8,Food & Beverage,29.82,20.52,2228,180
+9,4K Streaming Media Player 9,Electronics,1567.85,592.42,1819,99
+10,Slim Fit Denim Jeans 10,Clothing,25.29,9.15,3717,140
+11,Stainless Steel Cookware Set 11,Home & Garden,598.87,411.43,2054,72
+12,Beginner Python Workbook 12,Books,32.78,15.99,3979,46
+13,Adjustable Dumbbell Pair 13,Sports,86.65,42.48,1651,53
+14,Mineral Sunscreen SPF 50 14,Beauty,123.21,58.51,803,169
+15,Remote Control Race Car 15,Toys,107.44,45.66,3839,168
+16,Dark Chocolate Gift Box 16,Food & Beverage,61.33,27.9,4491,65
+17,USB-C Laptop Charger 17,Electronics,1380.86,491.45,4164,48
+18,Waterproof Hiking Jacket 18,Clothing,16.73,10.29,3902,136
+19,Indoor Herb Garden Kit 19,Home & Garden,567.67,347.58,2778,97
+20,Travel Photography Guide 20,Books,47.66,16.96,1227,31
+21,Insulated Water Bottle 21,Sports,404.36,197.5,4276,117
+22,Hydrating Lip Balm Set 22,Beauty,139.58,77.31,2827,115
+23,Plush Stuffed Animal 23,Toys,87.41,36.85,3014,15
+24,Sparkling Mineral Water Pack 24,Food & Beverage,35.57,13.72,1383,88
+25,Noise-Cancelling Earbuds 25,Electronics,1714.13,674.64,4109,21
+26,Merino Wool Sweater 26,Clothing,81.13,33.87,2172,136
+27,Memory Foam Pillow 27,Home & Garden,450.94,276.68,4981,136
+28,Paperback Historical Fiction 28,Books,35.48,22.2,1606,41
+29,Trail Running Shoes 29,Sports,23.4,7.86,3858,147
+30,Gentle Foaming Cleanser 30,Beauty,87.44,31.87,4504,105
+31,Strategy Board Game 31,Toys,29.63,17.14,2478,95
+32,Gourmet Pasta Sauce 32,Food & Beverage,31.67,13.32,3419,130
+33,Portable Power Bank 33,Electronics,755.53,253.15,1713,32
+34,Running Shorts 34,Clothing,241.05,159.92,2475,143
+35,Bamboo Cutting Board 35,Home & Garden,221.51,152.33,1317,158
+36,Children's Picture Book 36,Books,58.77,28.19,3685,61
+37,Resistance Band Set 37,Sports,66.87,44.2,638,97
+38,Hair Repair Oil 38,Beauty,42.81,18.08,4044,120
+39,STEM Robot Kit 39,Toys,33.1,21.27,97,154
+40,Mixed Nuts Variety Pack 40,Food & Beverage,55.36,26.18,1543,129
+41,Smart Home Speaker 41,Electronics,1188.99,665.76,3144,26
+42,Linen Button-Down Shirt 42,Clothing,112.71,35.69,897,104
+43,Outdoor String Lights 43,Home & Garden,271.93,97.3,3389,29
+44,Personal Finance Handbook 44,Books,49.07,18.07,1500,186
+45,Soccer Training Ball 45,Sports,352.83,154.8,3062,122
+46,Makeup Brush Kit 46,Beauty,11.92,8.15,2091,102
+47,Puzzle 1000 Pieces 47,Toys,119.15,39.69,1379,102
+48,Herbal Tea Sampler 48,Food & Beverage,39.35,26.57,805,119
+49,Wireless Mouse and Keyboard Kit 49,Electronics,973.3,395.93,4769,73
+50,Knit Beanie 50,Clothing,137.36,65.32,1423,14
+51,Cotton Throw Blanket 51,Home & Garden,663.12,436.64,2714,36
+52,Science Fiction Omnibus 52,Books,46.55,15.99,3330,138
+53,Cycling Gloves 53,Sports,175.93,99.18,3652,148
+54,Aloe After-Sun Gel 54,Beauty,140.21,48.11,3073,184
+55,Bubble Machine 55,Toys,40.69,12.82,706,115
+56,Extra Virgin Olive Oil 56,Food & Beverage,30.96,19.56,2300,164
+57,LED Monitor Stand 57,Electronics,668.41,455.29,3174,65
+58,Casual Canvas Sneakers 58,Clothing,136.04,54.74,4957,188
+59,Cast Iron Skillet 59,Home & Garden,141.71,45.06,1494,93
+60,World Atlas 60,Books,79.43,52.16,454,152
+61,Tennis Racket 61,Sports,535.57,352.07,580,109
+62,Nourishing Night Cream 62,Beauty,62.34,37.95,1678,136
+63,Play Kitchen Accessories 63,Toys,61.06,20.63,3683,152
+64,Honey and Granola Bundle 64,Food & Beverage,23.37,15.77,4739,56
+65,Wireless Bluetooth Headphones 65,Electronics,289.37,183.01,4460,39
+66,Classic Cotton T-Shirt 66,Clothing,57.13,30.84,3600,177
+67,Ceramic Table Lamp 67,Home & Garden,166.79,70.74,4991,158
+68,Hardcover Mystery Novel 68,Books,77.89,38.97,2168,37
+69,Yoga Mat with Carry Strap 69,Sports,18.22,7.14,1396,35
+70,Vitamin C Face Serum 70,Beauty,124.56,43.44,1482,106
+71,Wooden Building Block Set 71,Toys,106.59,56.75,2085,48
+72,Organic Coffee Beans 72,Food & Beverage,61.29,35.93,422,151
+73,4K Streaming Media Player 73,Electronics,305.55,106.79,2836,187
+74,Slim Fit Denim Jeans 74,Clothing,108.43,45.58,661,103
+75,Stainless Steel Cookware Set 75,Home & Garden,534.34,364.55,2605,64
+76,Beginner Python Workbook 76,Books,74.36,23.05,2985,116
+77,Adjustable Dumbbell Pair 77,Sports,384.05,131.48,3617,36
+78,Mineral Sunscreen SPF 50 78,Beauty,80.09,54.98,830,123
+79,Remote Control Race Car 79,Toys,140.49,87.35,2160,99
+80,Dark Chocolate Gift Box 80,Food & Beverage,59.93,18.41,3318,30
+81,USB-C Laptop Charger 81,Electronics,1667.38,1031.65,2315,54
+82,Waterproof Hiking Jacket 82,Clothing,139.73,75.79,4667,175
+83,Indoor Herb Garden Kit 83,Home & Garden,487.25,226.59,594,81
+84,Travel Photography Guide 84,Books,36.94,20.71,4814,175
+85,Insulated Water Bottle 85,Sports,277.8,110.88,1343,55
+86,Hydrating Lip Balm Set 86,Beauty,136.31,85.42,4796,30
+87,Plush Stuffed Animal 87,Toys,17.45,9.38,1789,37
+88,Sparkling Mineral Water Pack 88,Food & Beverage,62.73,26.61,4617,37
+89,Noise-Cancelling Earbuds 89,Electronics,1845.89,675.99,779,64
+90,Merino Wool Sweater 90,Clothing,51.1,17.69,2701,14
+91,Memory Foam Pillow 91,Home & Garden,55.65,20.58,4155,20
+92,Paperback Historical Fiction 92,Books,49.34,28.24,4016,85
+93,Trail Running Shoes 93,Sports,197.61,99.16,3680,177
+94,Gentle Foaming Cleanser 94,Beauty,154.39,49.0,2465,44
+95,Strategy Board Game 95,Toys,41.62,16.64,3213,119
+96,Gourmet Pasta Sauce 96,Food & Beverage,34.14,10.91,35,81
+97,Portable Power Bank 97,Electronics,1071.31,364.96,466,169
+98,Running Shorts 98,Clothing,27.21,18.23,3447,28
+99,Bamboo Cutting Board 99,Home & Garden,676.74,447.37,1199,197
+100,Children's Picture Book 100,Books,65.15,39.86,3139,132
+101,Resistance Band Set 101,Sports,469.61,166.16,4131,112
+102,Hair Repair Oil 102,Beauty,96.45,62.02,4169,98
+103,STEM Robot Kit 103,Toys,62.68,34.84,1249,60
+104,Mixed Nuts Variety Pack 104,Food & Beverage,14.78,7.26,825,89
+105,Smart Home Speaker 105,Electronics,503.5,225.07,2525,79
+106,Linen Button-Down Shirt 106,Clothing,91.96,41.55,914,140
+107,Outdoor String Lights 107,Home & Garden,245.94,167.13,3354,185
+108,Personal Finance Handbook 108,Books,41.07,17.72,2302,112
+109,Soccer Training Ball 109,Sports,510.65,286.49,1011,163
+110,Makeup Brush Kit 110,Beauty,99.63,55.11,362,65
+111,Puzzle 1000 Pieces 111,Toys,112.35,42.8,2987,142
+112,Herbal Tea Sampler 112,Food & Beverage,65.25,23.02,4763,127
+113,Wireless Mouse and Keyboard Kit 113,Electronics,235.43,138.97,2904,26
+114,Knit Beanie 114,Clothing,234.95,83.4,4800,193
+115,Cotton Throw Blanket 115,Home & Garden,643.1,345.65,2226,159
+116,Science Fiction Omnibus 116,Books,64.63,43.85,450,58
+117,Cycling Gloves 117,Sports,358.14,121.06,2603,127
+118,Aloe After-Sun Gel 118,Beauty,37.46,19.7,39,119
+119,Bubble Machine 119,Toys,74.17,37.76,3639,155
+120,Extra Virgin Olive Oil 120,Food & Beverage,60.95,30.28,1178,124
+121,LED Monitor Stand 121,Electronics,1865.91,649.14,3930,32
+122,Casual Canvas Sneakers 122,Clothing,35.61,20.05,3644,89
+123,Cast Iron Skillet 123,Home & Garden,622.17,353.7,3653,73
+124,World Atlas 124,Books,72.38,43.79,3173,61
+125,Tennis Racket 125,Sports,224.87,95.74,1565,40
+126,Nourishing Night Cream 126,Beauty,33.42,22.54,2775,93
+127,Play Kitchen Accessories 127,Toys,62.43,36.95,880,115
+128,Honey and Granola Bundle 128,Food & Beverage,70.53,43.17,3063,101
+129,Wireless Bluetooth Headphones 129,Electronics,783.89,544.53,24,147
+130,Classic Cotton T-Shirt 130,Clothing,238.53,82.86,1355,172
+131,Ceramic Table Lamp 131,Home & Garden,514.01,179.27,2391,122
+132,Hardcover Mystery Novel 132,Books,56.46,17.22,478,96
+133,Yoga Mat with Carry Strap 133,Sports,496.99,207.81,4842,97
+134,Vitamin C Face Serum 134,Beauty,84.08,35.38,2578,185
+135,Wooden Building Block Set 135,Toys,118.94,40.94,1955,200
+136,Organic Coffee Beans 136,Food & Beverage,66.54,27.52,3890,169
+137,4K Streaming Media Player 137,Electronics,257.51,180.16,119,137
+138,Slim Fit Denim Jeans 138,Clothing,167.78,56.4,3404,181
+139,Stainless Steel Cookware Set 139,Home & Garden,34.85,13.81,2266,37
+140,Beginner Python Workbook 140,Books,63.26,23.99,72,183
+141,Adjustable Dumbbell Pair 141,Sports,397.2,124.91,27,11
+142,Mineral Sunscreen SPF 50 142,Beauty,16.89,9.16,4901,163
+143,Remote Control Race Car 143,Toys,41.87,26.79,1224,20
+144,Dark Chocolate Gift Box 144,Food & Beverage,61.07,40.99,601,157
+145,USB-C Laptop Charger 145,Electronics,1411.33,896.47,2233,17
+146,Waterproof Hiking Jacket 146,Clothing,62.42,21.85,3487,106
+147,Indoor Herb Garden Kit 147,Home & Garden,599.21,330.77,430,172
+148,Travel Photography Guide 148,Books,16.64,9.88,265,46
+149,Insulated Water Bottle 149,Sports,169.75,99.13,2613,197
+150,Hydrating Lip Balm Set 150,Beauty,113.19,36.42,351,127
+151,Plush Stuffed Animal 151,Toys,14.01,9.16,2295,145
+152,Sparkling Mineral Water Pack 152,Food & Beverage,17.12,5.76,3852,45
+153,Noise-Cancelling Earbuds 153,Electronics,1961.05,948.02,2715,159
+154,Merino Wool Sweater 154,Clothing,164.56,87.05,2233,37
+155,Memory Foam Pillow 155,Home & Garden,757.47,318.54,2092,120
+156,Paperback Historical Fiction 156,Books,57.48,32.17,2213,189
+157,Trail Running Shoes 157,Sports,97.58,49.12,3455,87
+158,Gentle Foaming Cleanser 158,Beauty,89.56,31.14,4868,35
+159,Strategy Board Game 159,Toys,47.49,20.04,3074,91
+160,Gourmet Pasta Sauce 160,Food & Beverage,47.77,26.46,4858,88
+161,Portable Power Bank 161,Electronics,847.12,327.88,4746,122
+162,Running Shorts 162,Clothing,89.5,28.14,1493,89
+163,Bamboo Cutting Board 163,Home & Garden,385.62,150.48,476,119
+164,Children's Picture Book 164,Books,47.43,27.55,2735,133
+165,Resistance Band Set 165,Sports,394.94,168.44,1231,160
+166,Hair Repair Oil 166,Beauty,102.45,48.41,2648,129
+167,STEM Robot Kit 167,Toys,59.21,29.91,4042,150
+168,Mixed Nuts Variety Pack 168,Food & Beverage,67.05,44.82,4251,106
+169,Smart Home Speaker 169,Electronics,1064.53,659.95,1229,70
+170,Linen Button-Down Shirt 170,Clothing,211.78,105.39,208,32
+171,Outdoor String Lights 171,Home & Garden,68.78,43.8,4110,20
+172,Personal Finance Handbook 172,Books,26.05,11.3,2438,43
+173,Soccer Training Ball 173,Sports,195.2,116.55,4514,12
+174,Makeup Brush Kit 174,Beauty,150.27,96.57,2076,81
+175,Puzzle 1000 Pieces 175,Toys,29.81,16.11,3342,32
+176,Herbal Tea Sampler 176,Food & Beverage,30.54,20.87,383,200
+177,Wireless Mouse and Keyboard Kit 177,Electronics,1555.6,660.17,3853,141
+178,Knit Beanie 178,Clothing,180.77,82.28,4629,132
+179,Cotton Throw Blanket 179,Home & Garden,20.45,7.85,3783,110
+180,Science Fiction Omnibus 180,Books,17.28,6.33,2089,169
+181,Cycling Gloves 181,Sports,593.59,310.08,1002,170
+182,Aloe After-Sun Gel 182,Beauty,178.34,63.6,2515,95
+183,Bubble Machine 183,Toys,63.75,21.17,4178,154
+184,Extra Virgin Olive Oil 184,Food & Beverage,35.36,17.25,4595,38
+185,LED Monitor Stand 185,Electronics,402.8,266.99,4704,18
+186,Casual Canvas Sneakers 186,Clothing,69.72,29.06,972,103
+187,Cast Iron Skillet 187,Home & Garden,474.12,235.79,69,26
+188,World Atlas 188,Books,23.28,14.84,4271,131
+189,Tennis Racket 189,Sports,393.0,223.26,3973,155
+190,Nourishing Night Cream 190,Beauty,17.99,8.04,3719,113
+191,Play Kitchen Accessories 191,Toys,56.06,35.75,1655,102
+192,Honey and Granola Bundle 192,Food & Beverage,58.8,37.68,1849,106
+193,Wireless Bluetooth Headphones 193,Electronics,1823.63,975.37,600,172
+194,Classic Cotton T-Shirt 194,Clothing,95.04,47.48,4240,111
+195,Ceramic Table Lamp 195,Home & Garden,94.72,43.52,4992,185
+196,Hardcover Mystery Novel 196,Books,52.31,19.41,42,74
+197,Yoga Mat with Carry Strap 197,Sports,123.05,38.14,3040,187
+198,Vitamin C Face Serum 198,Beauty,85.09,35.99,712,124
+199,Wooden Building Block Set 199,Toys,9.04,3.72,851,144
+200,Organic Coffee Beans 200,Food & Beverage,49.36,34.19,4014,128
+201,4K Streaming Media Player 201,Electronics,981.13,593.16,3255,182
+202,Slim Fit Denim Jeans 202,Clothing,184.36,126.34,3117,159
+203,Stainless Steel Cookware Set 203,Home & Garden,695.04,240.23,2536,149
+204,Beginner Python Workbook 204,Books,38.01,19.81,4808,134
+205,Adjustable Dumbbell Pair 205,Sports,582.19,403.94,770,65
+206,Mineral Sunscreen SPF 50 206,Beauty,134.21,80.53,3185,76
+207,Remote Control Race Car 207,Toys,25.59,8.1,2541,158
+208,Dark Chocolate Gift Box 208,Food & Beverage,39.28,27.27,4300,98
+209,USB-C Laptop Charger 209,Electronics,1956.94,909.25,370,161
+210,Waterproof Hiking Jacket 210,Clothing,34.93,18.24,2702,163
+211,Indoor Herb Garden Kit 211,Home & Garden,740.66,465.9,1192,17
+212,Travel Photography Guide 212,Books,32.95,10.53,1845,30
+213,Insulated Water Bottle 213,Sports,408.43,239.06,3285,157
+214,Hydrating Lip Balm Set 214,Beauty,156.86,93.45,1967,162
+215,Plush Stuffed Animal 215,Toys,14.95,5.89,509,128
+216,Sparkling Mineral Water Pack 216,Food & Beverage,65.07,19.64,4759,108
+217,Noise-Cancelling Earbuds 217,Electronics,1370.71,427.45,3798,86
+218,Merino Wool Sweater 218,Clothing,225.47,128.21,1273,55
+219,Memory Foam Pillow 219,Home & Garden,683.99,300.42,3898,172
+220,Paperback Historical Fiction 220,Books,27.42,14.7,2245,85
+221,Trail Running Shoes 221,Sports,172.15,112.69,4332,45
+222,Gentle Foaming Cleanser 222,Beauty,22.59,9.87,2249,147
+223,Strategy Board Game 223,Toys,122.66,85.8,3191,66
+224,Gourmet Pasta Sauce 224,Food & Beverage,33.56,11.9,596,119
+225,Portable Power Bank 225,Electronics,1995.28,1157.97,3674,123
+226,Running Shorts 226,Clothing,107.21,71.41,1097,104
+227,Bamboo Cutting Board 227,Home & Garden,117.88,52.59,412,22
+228,Children's Picture Book 228,Books,20.15,6.19,1509,96
+229,Resistance Band Set 229,Sports,384.38,168.1,2248,90
+230,Hair Repair Oil 230,Beauty,172.98,103.92,2516,113
+231,STEM Robot Kit 231,Toys,48.4,31.89,1931,54
+232,Mixed Nuts Variety Pack 232,Food & Beverage,27.77,18.43,1530,111
+233,Smart Home Speaker 233,Electronics,1497.52,803.12,3100,134
+234,Linen Button-Down Shirt 234,Clothing,85.36,33.85,1498,71
+235,Outdoor String Lights 235,Home & Garden,134.49,87.38,7,64
+236,Personal Finance Handbook 236,Books,47.11,29.06,2925,159
+237,Soccer Training Ball 237,Sports,268.65,131.77,4750,199
+238,Makeup Brush Kit 238,Beauty,124.03,77.62,3358,182
+239,Puzzle 1000 Pieces 239,Toys,119.84,44.83,856,117
+240,Herbal Tea Sampler 240,Food & Beverage,12.13,6.81,1595,192
+241,Wireless Mouse and Keyboard Kit 241,Electronics,1049.82,496.76,698,16
+242,Knit Beanie 242,Clothing,240.55,82.08,1468,17
+243,Cotton Throw Blanket 243,Home & Garden,205.9,67.17,4923,96
+244,Science Fiction Omnibus 244,Books,43.71,18.58,237,19
+245,Cycling Gloves 245,Sports,75.84,34.42,3888,21
+246,Aloe After-Sun Gel 246,Beauty,128.09,49.03,4886,67
+247,Bubble Machine 247,Toys,63.97,29.85,757,10
+248,Extra Virgin Olive Oil 248,Food & Beverage,12.84,8.28,813,10
+249,LED Monitor Stand 249,Electronics,1040.92,516.09,146,73
+250,Casual Canvas Sneakers 250,Clothing,116.36,71.24,2336,170
+251,Cast Iron Skillet 251,Home & Garden,217.15,93.16,2987,56
+252,World Atlas 252,Books,40.99,23.5,1667,53
+253,Tennis Racket 253,Sports,205.13,137.88,2413,19
+254,Nourishing Night Cream 254,Beauty,87.25,51.01,956,38
+255,Play Kitchen Accessories 255,Toys,14.73,5.23,102,185
+256,Honey and Granola Bundle 256,Food & Beverage,5.65,2.12,4083,15
+257,Wireless Bluetooth Headphones 257,Electronics,265.72,145.63,2377,56
+258,Classic Cotton T-Shirt 258,Clothing,148.76,79.75,3438,172
+259,Ceramic Table Lamp 259,Home & Garden,15.74,10.09,2666,128
+260,Hardcover Mystery Novel 260,Books,17.21,10.48,4976,173
+261,Yoga Mat with Carry Strap 261,Sports,160.02,106.82,2785,96
+262,Vitamin C Face Serum 262,Beauty,111.79,77.57,397,79
+263,Wooden Building Block Set 263,Toys,123.47,52.77,2741,162
+264,Organic Coffee Beans 264,Food & Beverage,47.05,18.19,2577,89
+265,4K Streaming Media Player 265,Electronics,669.38,221.73,4310,15
+266,Slim Fit Denim Jeans 266,Clothing,96.42,29.66,3511,41
+267,Stainless Steel Cookware Set 267,Home & Garden,583.44,340.28,1507,151
+268,Beginner Python Workbook 268,Books,28.79,18.89,739,123
+269,Adjustable Dumbbell Pair 269,Sports,84.36,30.16,3351,142
+270,Mineral Sunscreen SPF 50 270,Beauty,37.75,18.99,606,199
+271,Remote Control Race Car 271,Toys,8.57,2.63,2767,199
+272,Dark Chocolate Gift Box 272,Food & Beverage,45.92,16.11,2864,181
+273,USB-C Laptop Charger 273,Electronics,1766.74,908.95,827,128
+274,Waterproof Hiking Jacket 274,Clothing,79.2,25.36,2236,123
+275,Indoor Herb Garden Kit 275,Home & Garden,244.27,138.12,4884,169
+276,Travel Photography Guide 276,Books,6.36,3.42,781,54
+277,Insulated Water Bottle 277,Sports,525.59,211.01,3099,126
+278,Hydrating Lip Balm Set 278,Beauty,103.21,47.32,3759,139
+279,Plush Stuffed Animal 279,Toys,111.06,58.5,1338,154
+280,Sparkling Mineral Water Pack 280,Food & Beverage,73.84,34.54,4622,108
+281,Noise-Cancelling Earbuds 281,Electronics,74.31,45.95,1792,109
+282,Merino Wool Sweater 282,Clothing,110.87,37.43,3861,179
+283,Memory Foam Pillow 283,Home & Garden,323.27,185.24,2344,38
+284,Paperback Historical Fiction 284,Books,77.12,28.64,3410,48
+285,Trail Running Shoes 285,Sports,516.8,343.69,1219,50
+286,Gentle Foaming Cleanser 286,Beauty,88.81,52.7,3222,177
+287,Strategy Board Game 287,Toys,61.83,31.34,443,151
+288,Gourmet Pasta Sauce 288,Food & Beverage,56.18,34.45,4749,118
+289,Portable Power Bank 289,Electronics,253.99,168.04,3498,175
+290,Running Shorts 290,Clothing,202.55,68.86,16,49
+291,Bamboo Cutting Board 291,Home & Garden,597.96,184.92,1051,197
+292,Children's Picture Book 292,Books,33.29,19.57,4657,179
+293,Resistance Band Set 293,Sports,242.83,103.85,1740,126
+294,Hair Repair Oil 294,Beauty,107.93,50.04,50,124
+295,STEM Robot Kit 295,Toys,140.82,68.59,338,47
+296,Mixed Nuts Variety Pack 296,Food & Beverage,31.4,14.37,3845,35
+297,Smart Home Speaker 297,Electronics,367.59,210.93,233,74
+298,Linen Button-Down Shirt 298,Clothing,239.4,95.15,991,28
+299,Outdoor String Lights 299,Home & Garden,605.76,395.21,1719,63
+300,Personal Finance Handbook 300,Books,20.16,7.55,2394,109
+301,Soccer Training Ball 301,Sports,286.37,115.63,639,18
+302,Makeup Brush Kit 302,Beauty,90.82,62.1,1223,134
+303,Puzzle 1000 Pieces 303,Toys,78.36,26.98,1170,58
+304,Herbal Tea Sampler 304,Food & Beverage,25.63,15.53,1508,177
+305,Wireless Mouse and Keyboard Kit 305,Electronics,1808.2,1254.58,3070,197
+306,Knit Beanie 306,Clothing,238.95,78.55,2051,36
+307,Cotton Throw Blanket 307,Home & Garden,251.92,131.29,2126,28
+308,Science Fiction Omnibus 308,Books,68.43,37.41,2013,113
+309,Cycling Gloves 309,Sports,107.53,43.15,2272,40
+310,Aloe After-Sun Gel 310,Beauty,154.53,82.47,2620,150
+311,Bubble Machine 311,Toys,50.04,22.44,4176,87
+312,Extra Virgin Olive Oil 312,Food & Beverage,58.2,35.44,215,49
+313,LED Monitor Stand 313,Electronics,1886.0,656.82,1164,181
+314,Casual Canvas Sneakers 314,Clothing,38.59,15.66,889,171
+315,Cast Iron Skillet 315,Home & Garden,153.44,71.42,307,95
+316,World Atlas 316,Books,23.39,13.66,670,172
+317,Tennis Racket 317,Sports,526.0,229.19,2674,111
+318,Nourishing Night Cream 318,Beauty,50.73,20.19,1481,40
+319,Play Kitchen Accessories 319,Toys,141.48,92.7,15,158
+320,Honey and Granola Bundle 320,Food & Beverage,41.24,20.47,2258,111
+321,Wireless Bluetooth Headphones 321,Electronics,1096.3,519.45,1807,35
+322,Classic Cotton T-Shirt 322,Clothing,44.53,30.32,447,102
+323,Ceramic Table Lamp 323,Home & Garden,763.13,278.87,1863,115
+324,Hardcover Mystery Novel 324,Books,20.58,8.26,4372,15
+325,Yoga Mat with Carry Strap 325,Sports,80.18,53.46,8,71
+326,Vitamin C Face Serum 326,Beauty,112.6,54.72,4855,86
+327,Wooden Building Block Set 327,Toys,83.53,31.32,4199,198
+328,Organic Coffee Beans 328,Food & Beverage,62.28,37.16,1854,99
+329,4K Streaming Media Player 329,Electronics,348.1,232.62,3410,75
+330,Slim Fit Denim Jeans 330,Clothing,26.78,11.7,285,161
+331,Stainless Steel Cookware Set 331,Home & Garden,502.69,301.78,3187,161
+332,Beginner Python Workbook 332,Books,20.9,13.99,2655,93
+333,Adjustable Dumbbell Pair 333,Sports,387.02,116.46,2763,199
+334,Mineral Sunscreen SPF 50 334,Beauty,56.31,18.29,1988,97
+335,Remote Control Race Car 335,Toys,26.32,9.5,3938,130
+336,Dark Chocolate Gift Box 336,Food & Beverage,32.5,21.73,3238,70
+337,USB-C Laptop Charger 337,Electronics,1466.05,710.21,1514,136
+338,Waterproof Hiking Jacket 338,Clothing,155.93,76.27,3070,191
+339,Indoor Herb Garden Kit 339,Home & Garden,282.06,104.61,453,139
+340,Travel Photography Guide 340,Books,68.45,21.64,4940,95
+341,Insulated Water Bottle 341,Sports,536.57,321.86,1389,199
+342,Hydrating Lip Balm Set 342,Beauty,99.4,56.06,861,67
+343,Plush Stuffed Animal 343,Toys,142.55,63.65,3674,151
+344,Sparkling Mineral Water Pack 344,Food & Beverage,33.22,17.43,747,147
+345,Noise-Cancelling Earbuds 345,Electronics,1042.42,690.95,1652,90
+346,Merino Wool Sweater 346,Clothing,167.06,73.0,3483,87
+347,Memory Foam Pillow 347,Home & Garden,358.76,125.68,4136,27
+348,Paperback Historical Fiction 348,Books,55.06,30.96,3666,136
+349,Trail Running Shoes 349,Sports,21.66,9.33,4025,47
+350,Gentle Foaming Cleanser 350,Beauty,141.84,91.38,3756,57
+351,Strategy Board Game 351,Toys,102.83,36.17,4356,62
+352,Gourmet Pasta Sauce 352,Food & Beverage,14.71,6.08,1405,138
+353,Portable Power Bank 353,Electronics,1825.14,695.39,4803,113
+354,Running Shorts 354,Clothing,179.83,122.49,2912,126
+355,Bamboo Cutting Board 355,Home & Garden,213.02,117.2,320,71
+356,Children's Picture Book 356,Books,78.21,35.97,2202,140
+357,Resistance Band Set 357,Sports,23.7,10.9,3504,177
+358,Hair Repair Oil 358,Beauty,112.96,53.95,882,188
+359,STEM Robot Kit 359,Toys,129.27,55.44,4283,114
+360,Mixed Nuts Variety Pack 360,Food & Beverage,39.29,21.72,4065,73
+361,Smart Home Speaker 361,Electronics,526.19,349.95,4773,186
+362,Linen Button-Down Shirt 362,Clothing,213.18,147.37,104,152
+363,Outdoor String Lights 363,Home & Garden,614.56,371.83,526,101
+364,Personal Finance Handbook 364,Books,39.23,15.54,3031,133
+365,Soccer Training Ball 365,Sports,180.7,72.84,2309,121
+366,Makeup Brush Kit 366,Beauty,78.52,30.43,3287,165
+367,Puzzle 1000 Pieces 367,Toys,130.2,47.79,1830,11
+368,Herbal Tea Sampler 368,Food & Beverage,28.53,17.66,671,170
+369,Wireless Mouse and Keyboard Kit 369,Electronics,319.73,194.95,3025,32
+370,Knit Beanie 370,Clothing,106.66,74.6,1432,46
+371,Cotton Throw Blanket 371,Home & Garden,133.32,62.54,2005,128
+372,Science Fiction Omnibus 372,Books,74.97,51.9,3163,23
+373,Cycling Gloves 373,Sports,91.42,56.34,1247,61
+374,Aloe After-Sun Gel 374,Beauty,160.19,90.57,2263,31
+375,Bubble Machine 375,Toys,126.22,46.77,778,90
+376,Extra Virgin Olive Oil 376,Food & Beverage,43.65,21.84,1475,141
+377,LED Monitor Stand 377,Electronics,1322.74,921.71,118,200
+378,Casual Canvas Sneakers 378,Clothing,136.37,46.1,3417,149
+379,Cast Iron Skillet 379,Home & Garden,781.61,334.01,1485,98
+380,World Atlas 380,Books,36.86,11.82,1844,138
+381,Tennis Racket 381,Sports,218.47,134.36,3406,168
+382,Nourishing Night Cream 382,Beauty,149.25,69.65,1973,71
+383,Play Kitchen Accessories 383,Toys,114.33,70.95,837,103
+384,Honey and Granola Bundle 384,Food & Beverage,67.51,24.14,2849,177
+385,Wireless Bluetooth Headphones 385,Electronics,237.38,85.79,1539,111
+386,Classic Cotton T-Shirt 386,Clothing,30.87,9.91,1133,10
+387,Ceramic Table Lamp 387,Home & Garden,355.82,217.0,494,16
+388,Hardcover Mystery Novel 388,Books,53.92,33.93,1711,42
+389,Yoga Mat with Carry Strap 389,Sports,96.65,62.27,1342,167
+390,Vitamin C Face Serum 390,Beauty,100.7,63.21,217,27
+391,Wooden Building Block Set 391,Toys,64.02,38.1,2938,59
+392,Organic Coffee Beans 392,Food & Beverage,57.66,28.93,2694,153
+393,4K Streaming Media Player 393,Electronics,956.12,427.54,2058,51
+394,Slim Fit Denim Jeans 394,Clothing,63.97,38.42,4810,32
+395,Stainless Steel Cookware Set 395,Home & Garden,79.75,29.55,811,43
+396,Beginner Python Workbook 396,Books,66.73,30.66,3496,199
+397,Adjustable Dumbbell Pair 397,Sports,90.95,51.06,898,95
+398,Mineral Sunscreen SPF 50 398,Beauty,75.58,49.13,4765,196
+399,Remote Control Race Car 399,Toys,131.95,49.73,3086,52
+400,Dark Chocolate Gift Box 400,Food & Beverage,50.93,21.17,1259,150
+401,USB-C Laptop Charger 401,Electronics,1154.52,600.77,1920,168
+402,Waterproof Hiking Jacket 402,Clothing,181.98,56.53,2653,19
+403,Indoor Herb Garden Kit 403,Home & Garden,486.03,240.33,3096,59
+404,Travel Photography Guide 404,Books,36.4,21.96,519,167
+405,Insulated Water Bottle 405,Sports,341.12,154.92,3773,61
+406,Hydrating Lip Balm Set 406,Beauty,97.77,41.64,2252,117
+407,Plush Stuffed Animal 407,Toys,104.08,33.98,1811,10
+408,Sparkling Mineral Water Pack 408,Food & Beverage,19.86,13.06,3868,133
+409,Noise-Cancelling Earbuds 409,Electronics,385.31,252.8,475,99
+410,Merino Wool Sweater 410,Clothing,126.88,85.54,2373,21
+411,Memory Foam Pillow 411,Home & Garden,181.56,97.01,2319,47
+412,Paperback Historical Fiction 412,Books,55.96,21.58,4462,28
+413,Trail Running Shoes 413,Sports,132.12,61.98,2607,43
+414,Gentle Foaming Cleanser 414,Beauty,31.17,20.08,901,71
+415,Strategy Board Game 415,Toys,59.23,19.08,2626,78
+416,Gourmet Pasta Sauce 416,Food & Beverage,23.54,12.81,2093,49
+417,Portable Power Bank 417,Electronics,1782.31,1197.47,3497,29
+418,Running Shorts 418,Clothing,40.24,13.93,2299,128
+419,Bamboo Cutting Board 419,Home & Garden,108.11,69.29,4814,154
+420,Children's Picture Book 420,Books,66.49,33.94,716,200
+421,Resistance Band Set 421,Sports,36.06,16.61,311,71
+422,Hair Repair Oil 422,Beauty,171.17,90.85,4579,163
+423,STEM Robot Kit 423,Toys,32.19,22.26,1630,105
+424,Mixed Nuts Variety Pack 424,Food & Beverage,39.56,27.23,4783,82
+425,Smart Home Speaker 425,Electronics,825.17,440.56,2351,34
+426,Linen Button-Down Shirt 426,Clothing,90.46,34.13,4910,29
+427,Outdoor String Lights 427,Home & Garden,694.52,372.08,2887,78
+428,Personal Finance Handbook 428,Books,35.65,16.85,4004,130
+429,Soccer Training Ball 429,Sports,556.79,374.78,3653,84
+430,Makeup Brush Kit 430,Beauty,64.63,31.05,4847,118
+431,Puzzle 1000 Pieces 431,Toys,73.58,41.46,1752,115
+432,Herbal Tea Sampler 432,Food & Beverage,27.45,12.03,352,82
+433,Wireless Mouse and Keyboard Kit 433,Electronics,234.54,85.94,2503,148
+434,Knit Beanie 434,Clothing,106.44,41.07,3903,117
+435,Cotton Throw Blanket 435,Home & Garden,607.37,244.75,2631,167
+436,Science Fiction Omnibus 436,Books,74.56,40.18,523,137
+437,Cycling Gloves 437,Sports,41.02,27.82,4236,84
+438,Aloe After-Sun Gel 438,Beauty,166.91,88.73,4895,10
+439,Bubble Machine 439,Toys,13.47,7.71,4568,117
+440,Extra Virgin Olive Oil 440,Food & Beverage,6.86,4.1,755,172
+441,LED Monitor Stand 441,Electronics,1018.01,495.06,2261,11
+442,Casual Canvas Sneakers 442,Clothing,199.86,86.4,4403,177
+443,Cast Iron Skillet 443,Home & Garden,305.97,160.95,291,61
+444,World Atlas 444,Books,17.04,10.39,748,104
+445,Tennis Racket 445,Sports,326.53,224.05,383,194
+446,Nourishing Night Cream 446,Beauty,155.17,58.2,4656,123
+447,Play Kitchen Accessories 447,Toys,132.7,59.69,586,29
+448,Honey and Granola Bundle 448,Food & Beverage,61.77,30.43,1222,117
+449,Wireless Bluetooth Headphones 449,Electronics,1965.18,1066.87,4551,91
+450,Classic Cotton T-Shirt 450,Clothing,101.95,47.62,643,32
+451,Ceramic Table Lamp 451,Home & Garden,638.26,405.35,344,64
+452,Hardcover Mystery Novel 452,Books,27.78,18.05,330,14
+453,Yoga Mat with Carry Strap 453,Sports,317.07,153.93,2168,141
+454,Vitamin C Face Serum 454,Beauty,36.1,20.48,568,81
+455,Wooden Building Block Set 455,Toys,95.86,30.3,2906,98
+456,Organic Coffee Beans 456,Food & Beverage,41.56,16.03,2237,36
+457,4K Streaming Media Player 457,Electronics,417.52,182.73,928,28
+458,Slim Fit Denim Jeans 458,Clothing,237.62,109.78,1123,164
+459,Stainless Steel Cookware Set 459,Home & Garden,779.84,259.14,2913,134
+460,Beginner Python Workbook 460,Books,70.36,38.96,1799,91
+461,Adjustable Dumbbell Pair 461,Sports,264.34,83.1,1022,112
+462,Mineral Sunscreen SPF 50 462,Beauty,178.89,122.27,3304,17
+463,Remote Control Race Car 463,Toys,108.22,45.53,2610,182
+464,Dark Chocolate Gift Box 464,Food & Beverage,8.16,5.5,3809,169
+465,USB-C Laptop Charger 465,Electronics,279.12,90.42,23,169
+466,Waterproof Hiking Jacket 466,Clothing,51.6,26.52,346,184
+467,Indoor Herb Garden Kit 467,Home & Garden,459.15,210.7,3964,94
+468,Travel Photography Guide 468,Books,9.73,6.69,1444,69
+469,Insulated Water Bottle 469,Sports,121.72,50.44,989,194
+470,Hydrating Lip Balm Set 470,Beauty,24.22,15.67,637,145
+471,Plush Stuffed Animal 471,Toys,125.86,86.89,3096,170
+472,Sparkling Mineral Water Pack 472,Food & Beverage,71.04,24.92,4615,161
+473,Noise-Cancelling Earbuds 473,Electronics,1114.06,576.41,4827,181
+474,Merino Wool Sweater 474,Clothing,243.37,141.63,3821,102
+475,Memory Foam Pillow 475,Home & Garden,371.65,168.93,1399,79
+476,Paperback Historical Fiction 476,Books,34.36,11.54,3619,24
+477,Trail Running Shoes 477,Sports,470.12,224.92,968,187
+478,Gentle Foaming Cleanser 478,Beauty,113.3,35.58,1576,40
+479,Strategy Board Game 479,Toys,37.23,25.7,4092,51
+480,Gourmet Pasta Sauce 480,Food & Beverage,41.1,27.72,4356,196
+481,Portable Power Bank 481,Electronics,510.9,163.31,1777,39
+482,Running Shorts 482,Clothing,29.88,11.3,743,118
+483,Bamboo Cutting Board 483,Home & Garden,731.01,376.39,3301,129
+484,Children's Picture Book 484,Books,20.14,12.49,4315,127
+485,Resistance Band Set 485,Sports,519.84,353.25,638,76
+486,Hair Repair Oil 486,Beauty,23.58,9.2,2036,93
+487,STEM Robot Kit 487,Toys,142.29,64.22,1628,157
+488,Mixed Nuts Variety Pack 488,Food & Beverage,42.83,15.98,3082,71
+489,Smart Home Speaker 489,Electronics,1323.72,753.38,810,93
+490,Linen Button-Down Shirt 490,Clothing,68.73,40.47,4514,42
+491,Outdoor String Lights 491,Home & Garden,750.1,281.41,4111,30
+492,Personal Finance Handbook 492,Books,42.32,21.49,157,107
+493,Soccer Training Ball 493,Sports,267.63,186.79,495,102
+494,Makeup Brush Kit 494,Beauty,90.21,42.28,4867,22
+495,Puzzle 1000 Pieces 495,Toys,92.2,36.07,3599,131
+496,Herbal Tea Sampler 496,Food & Beverage,8.56,5.93,86,99
+497,Wireless Mouse and Keyboard Kit 497,Electronics,1798.67,881.75,3586,21
+498,Knit Beanie 498,Clothing,208.22,116.45,3738,159
+499,Cotton Throw Blanket 499,Home & Garden,349.4,193.98,965,173
+500,Science Fiction Omnibus 500,Books,52.33,22.98,2175,136
