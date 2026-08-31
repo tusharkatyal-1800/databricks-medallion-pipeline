@@ -235,7 +235,7 @@ Create `src/silver/create_silver_tables.py` as a Databricks notebook that
 builds the final Silver layer.
 
 The exact first line must be:
-# Databricks notebook source
+Databricks notebook source
 
 Read these managed Unity Catalog Bronze tables:
 - ecommerce.medallion.bronze_customers
@@ -368,13 +368,29 @@ _TODO_
 
 ---
 
-## Prompt 1:
+## Prompt 7: Update Readme file for silver phase
 
 **PROMPT SENT:**
-_TODO_
+Update readme.md for silver phase 
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+README.md now includes a Silver runbook after Bronze.
+
+It covers:
+
+Run src/silver/create_silver_tables.py on an all-purpose cluster after Bronze SUCCESS
+Managed tables: customers_silver, orders_silver, products_silver, quality_metrics
+Flag-only design and quality_check_result tokens
+01–05 are optional and do not write tables
+Expected planted fails vs threshold_met = false
+Why orders clean rate can be ~64% (order_before_signup)
+SQL verification and overwrite re-runs
+File list for src/silver/
+Documentation summary
+
+Extended README.md with Silver steps, tables, expected quality results, and troubleshooting.
+Main entry point documented as src/silver/create_silver_tables.py.
+Gold is still marked as not in this guide.
 
 **YOUR EVALUATION:**
 _TODO_
