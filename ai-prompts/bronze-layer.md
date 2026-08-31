@@ -286,7 +286,7 @@ Registered table is ecommerce.medallion.bronze_products.
 _TODO_
 
 
-## Prompt 6: ingest_all.py
+## Prompt 6: ingest_all.py creation
 
 **PROMPT SENT:**
 Create `src/bronze/ingest_all.py` — an orchestrator script that runs all 3 ingestion 
@@ -352,3 +352,51 @@ Re-run the orchestrator notebook after this change.
 **YOUR EVALUATION:**
 _TODO_
 
+## Iteration 2 : Refactor `src/bronze/ingest_all.py` for Databricks compatibility.
+
+**Prompt Sent:**
+
+I ran into a critical Databricks architecture issue. Files with 
+`# Databricks notebook source` header are treated as notebooks and CANNOT 
+be imported via `import` or `importlib`. Only the entry-point orchestrator 
+should be a notebook. All other files are regular Python modules.
+CURRENT ARCHITECTURE (broken):
+- ingest_all.py uses `importlib.util.spec_from_file_location()` to load 
+  01_ingest_customers.py, 02_ingest_orders.py, 03_ingest_products.py
+- This fails because Databricks intercepts file loading for workspace files
+REQUIRED ARCHITECTURE:
+- ingest_all.py is the ONLY file with `# Databricks notebook source`
+- All 3 ingest scripts are regular Python modules (no notebook header)
+- Databricks doesn't inject `spark` and `dbutils` into imported modules, 
+  so we must make them globally available using `builtins`
+REQUIREMENTS:
+1. Use `builtins.spark = spark` and `builtins.dbutils = dbutils` at the top 
+   to inject Databricks globals before any imports
+2. Add src/ to sys.path for Databricks (fallback to hardcoded path: 
+   "/Workspace/Users/tushar.katyal@tothenew.com/databricks-medallion-pipeline/src")
+3. Import ingest functions using `importlib.import_module()` since filenames 
+   start with digits (invalid Python identifiers)
+4. Remove the entire resolve_bronze_dir() function and all the complex 
+   path resolution logic — sys.path handles it now
+5. Keep the IngestResult dataclass, timing, summary table, and overall 
+   status logic (SUCCESS/PARTIAL/FAILED)
+6. Call ingest_all() at the bottom (outside __main__ guard) so it auto-runs 
+   when executed via %run in Databricks
+7. Each ingest function (ingest_customers, ingest_orders, ingest_products) 
+   takes no arguments and returns a DataFrame
+Keep all existing docstrings. Keep the summary table format unchanged.
+Remove unused imports (importlib.util, types.ModuleType).
+
+**AI RESPONSE SUMMARY:**
+Cursor refactored ingest_all.py to:
+- Use `builtins.spark` injection instead of relying on Databricks notebook globals
+- Replace `importlib.util.spec_from_file_location` with `importlib.import_module`
+- Remove 60+ lines of path resolution logic (resolve_bronze_dir, etc.)
+- Add auto-execution at module level for %run compatibility
+
+**YOUR EVALUATION:**
+Accepted: builtins approach — clean, one-line fix for global spark access
+
+importlib.import_module — simpler, leverages sys.path correctly
+
+Removed path resolution — was over-engineered for the problem
