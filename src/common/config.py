@@ -1,4 +1,3 @@
-# Databricks notebook source
 """Unity Catalog Volume paths and three-level table names.
 
 Canonical storage (Databricks Unity Catalog Volumes)::

@@ -22,6 +22,18 @@ from types import ModuleType
 
 LOGGER = logging.getLogger("bronze.ingest_all")
 
+# Ensure src/ is on sys.path so ingest scripts can import common.config
+try:
+    _SRC_DIR = str(Path(__file__).resolve().parent.parent)  # bronze -> src
+except NameError:
+    _SRC_DIR = (
+        "/Workspace/Users/tushar.katyal@tothenew.com/"
+        "databricks-medallion-pipeline/src"
+    )
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+
+
 if not logging.getLogger().handlers:
     logging.basicConfig(
         level=logging.INFO,

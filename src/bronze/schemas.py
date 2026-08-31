@@ -1,4 +1,3 @@
-# Databricks notebook source
 """Explicit PySpark schemas for Bronze CSV ingestion.
 
 These contracts are passed to ``spark.read.csv(..., schema=..., header=True)``
