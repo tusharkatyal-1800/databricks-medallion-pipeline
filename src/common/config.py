@@ -1,10 +1,12 @@
-"""Unity Catalog Volume paths and three-level table names.
+"""Unity Catalog raw-file paths and managed table names.
 
-Canonical storage (Databricks Unity Catalog Volumes)::
+Raw source storage::
 
-    /Volumes/ecommerce/medallion/data/{raw|bronze|silver|gold}/...
+    /Volumes/ecommerce/medallion/data/raw/...
 
-Tables: ``ecommerce.medallion.<table>``.
+Curated Bronze, Silver, and Gold datasets are managed Delta tables named
+``ecommerce.medallion.<table>``. A table cannot use a directory inside a
+Unity Catalog Volume as its registered table location.
 """
 
 from __future__ import annotations
@@ -20,26 +22,10 @@ UC_VOLUME = "data"
 VOLUME_ROOT = f"/Volumes/{UC_CATALOG}/{UC_SCHEMA}/{UC_VOLUME}"
 
 RAW_DIR = f"{VOLUME_ROOT}/raw"
-BRONZE_DIR = f"{VOLUME_ROOT}/bronze"
-SILVER_DIR = f"{VOLUME_ROOT}/silver"
-GOLD_DIR = f"{VOLUME_ROOT}/gold"
 
 CUSTOMERS_CSV_PATH = f"{RAW_DIR}/customers.csv"
 ORDERS_CSV_PATH = f"{RAW_DIR}/orders.csv"
 PRODUCTS_CSV_PATH = f"{RAW_DIR}/products.csv"
-
-BRONZE_CUSTOMERS_PATH = f"{BRONZE_DIR}/customers"
-BRONZE_ORDERS_PATH = f"{BRONZE_DIR}/orders"
-BRONZE_PRODUCTS_PATH = f"{BRONZE_DIR}/products"
-
-SILVER_CUSTOMERS_PATH = f"{SILVER_DIR}/customers"
-SILVER_ORDERS_PATH = f"{SILVER_DIR}/orders"
-SILVER_PRODUCTS_PATH = f"{SILVER_DIR}/products"
-QUALITY_METRICS_PATH = f"{SILVER_DIR}/quality_metrics"
-
-GOLD_SALES_BY_PRODUCT_PATH = f"{GOLD_DIR}/sales_by_product"
-GOLD_REVENUE_BY_CUSTOMER_PATH = f"{GOLD_DIR}/revenue_by_customer"
-GOLD_CUSTOMER_SEGMENTATION_PATH = f"{GOLD_DIR}/customer_segmentation"
 
 BRONZE_CUSTOMERS_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.bronze_customers"
 BRONZE_ORDERS_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.bronze_orders"

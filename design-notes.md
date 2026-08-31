@@ -49,19 +49,17 @@ Canonical column lists, Spark types, and nullability live in [`data-model.md`](d
 
 ### Path naming convention
 
-Root: `/Volumes/ecommerce/medallion/data/` (`/Volumes/<catalog>/<schema>/<volume>/{layer}/...`).
+Raw root: `/Volumes/ecommerce/medallion/data/raw/`. Curated layers use managed
+Unity Catalog tables because registered tables cannot use locations inside a
+Volume.
 
-| Role | Path | UC table |
+| Role | Storage/access | UC table |
 | --- | --- | --- |
 | Raw CSV | `/Volumes/ecommerce/medallion/data/raw/customers.csv` (and `orders.csv`, `products.csv`) | — |
-| Bronze Delta | `/Volumes/ecommerce/medallion/data/bronze/customers` | `ecommerce.medallion.bronze_customers` |
-| | `/Volumes/ecommerce/medallion/data/bronze/orders` | `ecommerce.medallion.bronze_orders` |
-| | `/Volumes/ecommerce/medallion/data/bronze/products` | `ecommerce.medallion.bronze_products` |
-| Silver Delta | `/Volumes/ecommerce/medallion/data/silver/{table_name}` | `ecommerce.medallion.customers_silver`, `orders_silver`, `products_silver` |
-| Metrics | `/Volumes/ecommerce/medallion/data/silver/quality_metrics` | `ecommerce.medallion.quality_metrics` |
-| Gold Delta | `/Volumes/ecommerce/medallion/data/gold/{table_name}` | `ecommerce.medallion.sales_by_product`, `revenue_by_customer`, `customer_segmentation` |
-
-`{table_name}` is the entity or gold subject, not a date partition (full daily refresh).
+| Bronze Delta | Managed table | `ecommerce.medallion.bronze_customers`, `bronze_orders`, `bronze_products` |
+| Silver Delta | Managed table | `ecommerce.medallion.customers_silver`, `orders_silver`, `products_silver` |
+| Metrics | Managed table | `ecommerce.medallion.quality_metrics` |
+| Gold Delta | Managed table | `ecommerce.medallion.sales_by_product`, `revenue_by_customer`, `customer_segmentation` |
 
 ### Schema inference vs schema definition
 
@@ -89,7 +87,8 @@ Append only; never overwrite source fields:
 - Format: Delta; `mode("overwrite")` + `option("overwriteSchema", "true")`.
 - `CREATE SCHEMA IF NOT EXISTS ecommerce.medallion` and
   `CREATE VOLUME IF NOT EXISTS ecommerce.medallion.data`.
-- `save` to the Volume location **and** `CREATE TABLE IF NOT EXISTS ... USING DELTA LOCATION` so SQL dashboards can use `ecommerce.medallion.*`.
+- Use `saveAsTable("ecommerce.medallion.<table>")`; do not register a table
+  with a location inside the Volume.
 - Comments on tables (`ecommerce medallion bronze customers extract`).
 - No partitioning (10K / 100K / 500 is small; partitioning `customer_id` would hurt).
 

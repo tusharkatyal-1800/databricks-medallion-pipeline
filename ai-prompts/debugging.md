@@ -76,13 +76,23 @@ The production pattern is:
 
 ---
 
-## Prompt 2:
+## Prompt 2: Bronze ingest fix
 
 **PROMPT SENT:**
-_TODO_
+Fix Bronze ingest for Databricks Unity Catalog.
+Raw CSVs stay on the Volume. Bronze must be managed Delta tables via saveAsTable, not LOCATION inside /Volumes.
+Use a shared ingestion module. Keep 01/02/03 notebooks and ingest_all as thin wrappers.
+Use spark/dbutils from the runtime. No SparkSession.builder, no hardcoded workspace paths, no __file__.
+If one ingest fails, log it and continue. Print a SUCCESS/PARTIAL/FAILED summary.
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+Refactored Bronze for Databricks UC:
+- Volume = raw CSVs only (/Volumes/ecommerce/medallion/data/raw/)
+- Bronze = managed tables: ecommerce.medallion.bronze_customers / bronze_orders / bronze_products
+- Shared logic in src/bronze/ingestion.py
+- 01/02/03 + ingest_all.py are notebook wrappers (Databricks notebook source header)
+- ingest_all times each job, continues on failure, prints a summary table
+- Removed SparkSession.builder, hardcoded /Workspace/Users/... path, and CREATE TABLE ... LOCATION '/Volumes/...'
 
 **YOUR EVALUATION:**
-_TODO_
+We have changes the architeture for bronze layer jobs with a common ingestion.py scripts to be used for all 3 ingestion jobs.

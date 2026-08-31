@@ -12,8 +12,10 @@ The engineering constraint is as important as the business one: Databricks Unity
 
 ### Shared (all layers)
 
-- FR-1: Persist every curated dataset as Delta under `/Volumes/ecommerce/medallion/data/`.
-- FR-2: Use Unity Catalog three-level names (for example `ecommerce.medallion.bronze_orders`) and Volume paths (`/Volumes/...`).
+- FR-1: Keep raw CSVs under `/Volumes/ecommerce/medallion/data/raw/` and
+  persist every curated dataset as a managed Unity Catalog Delta table.
+- FR-2: Use Unity Catalog three-level names (for example
+  `ecommerce.medallion.bronze_orders`) for curated layers.
 - FR-3: Generate synthetic source CSVs at the stated volumes, with about 700 planted quality defects (see Assumptions for how the listed defects map to that total).
 - FR-4: Every notebook/script is idempotent: a second run on the same input replaces the same Delta tables rather than appending duplicates.
 
@@ -117,7 +119,7 @@ The engineering constraint is as important as the business one: Databricks Unity
 
 ### Bronze
 
-- [ ] Three Delta tables exist at `/Volumes/ecommerce/medallion/data/bronze/` (or registered `ecommerce.medallion.bronze_*`).
+- [ ] Three managed Delta tables exist as `ecommerce.medallion.bronze_*`.
 - [ ] Column names match the CSV headers listed in the business context.
 - [ ] Row counts equal CSV records, including planted defects.
 - [ ] Re-run does not increase row counts (overwrite, not append).

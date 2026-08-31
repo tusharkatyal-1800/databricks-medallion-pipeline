@@ -7,7 +7,8 @@ change that satisfies the request.
 
 ## Project context
 
-- Platform: Databricks with Unity Catalog. Files live on a managed Volume.
+- Platform: Databricks with Unity Catalog. Raw files live on a managed Volume;
+  curated datasets are managed Delta tables.
 - Languages: Python 3, PySpark, ANSI Spark SQL.
 - Dataset (CSV): customers (~10K rows), orders (~100K rows), products (~500 rows).
 - Bronze: raw ingestion only — no business transformations.
@@ -20,10 +21,10 @@ change that satisfies the request.
 ## 1. Unity Catalog and Volumes
 
 - Use three-level names: `ecommerce.medallion.<table>`.
-- Store all pipeline files on the Volume
+- Store raw pipeline files on the Volume
   `/Volumes/ecommerce/medallion/data/` (catalog `ecommerce`, schema
   `medallion`, volume `data`).
-- Use the canonical Volume root for every pipeline file.
+- Use the canonical Volume root for raw CSV files.
 - Use `spark` / `dbutils` from the Databricks notebook runtime. Do not
   assume a local `SparkSession.builder` unless the user asked for local tests.
 - Every Databricks job/notebook `.py` file (Bronze, Silver, Gold, dashboard
@@ -46,24 +47,26 @@ df.write.format("delta").mode("overwrite").saveAsTable(
 spark.read.csv("/Volumes/ecommerce/medallion/data/raw/orders.csv", header=True)
 ```
 
-## 2. Delta Lake for all tables
+## 2. Managed Delta tables
 
 - Persist Bronze, Silver, and Gold as Delta (`format("delta")` or `USING DELTA`).
 - Do not leave curated layers as CSV/JSON/Parquet-only tables.
-- Register tables with a Volume location under
-  `/Volumes/ecommerce/medallion/data/...`.
+- Write curated datasets as managed Unity Catalog tables using
+  `saveAsTable("ecommerce.medallion.<table>")`.
+- Never register a table with `LOCATION '/Volumes/...'`; Unity Catalog tables
+  and Volumes cannot overlap.
 - Use Delta options that support re-runs (`overwriteSchema` when schema can change).
 
 ```python
 # BAD
-df.write.mode("overwrite").parquet("/Volumes/ecommerce/medallion/data/silver/orders")
+df.write.format("delta").save("/Volumes/ecommerce/medallion/data/silver/orders")
 
 # GOOD
 (
     df.write.format("delta")
     .mode("overwrite")
     .option("overwriteSchema", "true")
-    .save("/Volumes/ecommerce/medallion/data/silver/orders")
+    .saveAsTable("ecommerce.medallion.orders_silver")
 )
 ```
 
@@ -127,18 +130,18 @@ def apply_completeness_check(df, required_columns):
     """
 ```
 
-## 6. Unity Catalog Volume paths only
+## 6. Volume source paths and managed tables
 
-- All pipeline files live under
-  `/Volumes/ecommerce/medallion/data/...`. Do not use mounts, direct cloud
-  object-store URLs, or local `C:\\` paths in pipeline code.
+- All raw source files live under `/Volumes/ecommerce/medallion/data/raw/`.
+- Curated datasets are accessed by `ecommerce.medallion.<table>`, not paths.
+- Do not use mounts, direct cloud object-store URLs, or local `C:\\` paths in
+  pipeline code.
 - Canonical layout:
   - Raw CSV: `/Volumes/ecommerce/medallion/data/raw/`
-  - Bronze: `/Volumes/ecommerce/medallion/data/bronze/`
-  - Silver: `/Volumes/ecommerce/medallion/data/silver/`
-  - Gold: `/Volumes/ecommerce/medallion/data/gold/`
-- Create parent objects if missing (`CREATE SCHEMA IF NOT EXISTS`,
-  `CREATE VOLUME IF NOT EXISTS`, `dbutils.fs.mkdirs`).
+  - Bronze: `ecommerce.medallion.bronze_<entity>`
+  - Silver: `ecommerce.medallion.<entity>_silver`
+  - Gold: `ecommerce.medallion.<aggregation>`
+- Create catalog/schema/volume if missing when privileges allow.
 
 ## 7. Error handling and logging
 
@@ -217,7 +220,7 @@ df.write.format("delta").mode("append").saveAsTable("ecommerce.medallion.bronze_
 
 ### Bronze
 - Read CSV from `/Volumes/ecommerce/medallion/data/raw/`.
-- Land as Delta with original columns; no cleansing, no type coercion
+- Land as a managed Delta table with original columns; no cleansing, no type coercion
   beyond what is required to persist (prefer strings if types are uncertain).
 - Optional metadata only if it does not rewrite source fields
   (`ingest_timestamp`, `source_file_name`).

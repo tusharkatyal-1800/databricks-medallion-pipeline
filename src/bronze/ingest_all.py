@@ -1,84 +1,67 @@
 # Databricks notebook source
-"""Orchestrate Bronze ingest for customers, orders, and products."""
+"""Run all Bronze ingestions sequentially in Databricks."""
 
 from __future__ import annotations
 
-import builtins
 import logging
-import sys
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# 1. Get spark & dbutils (works on Databricks and locally)
-# ---------------------------------------------------------------------------
-from pyspark.sql import SparkSession
-
-spark = SparkSession.builder.getOrCreate()
+from pyspark.sql.types import StructType
 
 try:
-    dbutils  # noqa: F821
-except NameError:
-    from pyspark.dbutils import DBUtils
-    dbutils = DBUtils(spark)
-
-# Make spark & dbutils available to dynamically imported scripts
-builtins.spark = spark
-builtins.dbutils = dbutils
-
-# ---------------------------------------------------------------------------
-# 2. Ensure src/ is on sys.path
-# ---------------------------------------------------------------------------
-try:
-    _SRC_DIR = str(Path(__file__).resolve().parent.parent)
-except NameError:
-    _SRC_DIR = (
-        "/Workspace/Users/tushar.katyal@tothenew.com/"
-        "databricks-medallion-pipeline/src"
+    from src.bronze.ingestion import ingest_bronze_entity
+    from src.bronze.schemas import (
+        CUSTOMERS_SCHEMA,
+        ORDERS_SCHEMA,
+        PRODUCTS_SCHEMA,
     )
-if _SRC_DIR not in sys.path:
-    sys.path.insert(0, _SRC_DIR)
+    from src.common.config import (
+        BRONZE_CUSTOMERS_TABLE,
+        BRONZE_ORDERS_TABLE,
+        BRONZE_PRODUCTS_TABLE,
+        CUSTOMERS_CSV_PATH,
+        ORDERS_CSV_PATH,
+        PRODUCTS_CSV_PATH,
+        ensure_unity_storage,
+    )
+except ImportError:
+    from bronze.ingestion import ingest_bronze_entity
+    from bronze.schemas import CUSTOMERS_SCHEMA, ORDERS_SCHEMA, PRODUCTS_SCHEMA
+    from common.config import (
+        BRONZE_CUSTOMERS_TABLE,
+        BRONZE_ORDERS_TABLE,
+        BRONZE_PRODUCTS_TABLE,
+        CUSTOMERS_CSV_PATH,
+        ORDERS_CSV_PATH,
+        PRODUCTS_CSV_PATH,
+        ensure_unity_storage,
+    )
 
-# ---------------------------------------------------------------------------
-# 3. Logging
-# ---------------------------------------------------------------------------
 LOGGER = logging.getLogger("bronze.ingest_all")
+
 if not logging.getLogger().handlers:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s - %(message)s",
     )
 
-# ---------------------------------------------------------------------------
-# 4. Now import the ingest functions directly
-# ---------------------------------------------------------------------------
-from common.config import (  # noqa: E402
-    BRONZE_CUSTOMERS_TABLE,
-    BRONZE_ORDERS_TABLE,
-    BRONZE_PRODUCTS_TABLE,
-    ensure_unity_storage,
-)
 
-# Files start with digits, so use importlib
-import importlib  # noqa: E402
+@dataclass(frozen=True)
+class IngestJob:
+    """Configuration for one Bronze entity ingestion."""
 
-_cust_mod = importlib.import_module("bronze.01_ingest_customers")
-_orders_mod = importlib.import_module("bronze.02_ingest_orders")
-_products_mod = importlib.import_module("bronze.03_ingest_products")
-
-INGEST_JOBS = (
-    ("customers", _cust_mod.ingest_customers),
-    ("orders", _orders_mod.ingest_orders),
-    ("products", _products_mod.ingest_products),
-)
+    entity_name: str
+    source_path: str
+    source_file_name: str
+    table_name: str
+    schema: StructType
 
 
-# ---------------------------------------------------------------------------
-# 5. Simple dataclass + runner
-# ---------------------------------------------------------------------------
-@dataclass
+@dataclass(frozen=True)
 class IngestResult:
+    """Result displayed in the final orchestration summary."""
+
     table: str
     rows_ingested: int
     duration_s: float
@@ -86,44 +69,146 @@ class IngestResult:
     error: str | None = None
 
 
-def _run_one(table: str, ingest_fn) -> IngestResult:
+INGEST_JOBS = (
+    IngestJob(
+        "customers",
+        CUSTOMERS_CSV_PATH,
+        "customers.csv",
+        BRONZE_CUSTOMERS_TABLE,
+        CUSTOMERS_SCHEMA,
+    ),
+    IngestJob(
+        "orders",
+        ORDERS_CSV_PATH,
+        "orders.csv",
+        BRONZE_ORDERS_TABLE,
+        ORDERS_SCHEMA,
+    ),
+    IngestJob(
+        "products",
+        PRODUCTS_CSV_PATH,
+        "products.csv",
+        BRONZE_PRODUCTS_TABLE,
+        PRODUCTS_SCHEMA,
+    ),
+)
+
+
+def run_ingest_job(job: IngestJob) -> IngestResult:
+    """Run one Bronze ingestion and convert errors into a result.
+
+    Args:
+        job: Entity-specific source, target, and schema configuration.
+
+    Returns:
+        Successful or failed ingest result. Exceptions are logged so the
+        orchestrator can continue to the next entity.
+    """
     started = time.perf_counter()
     try:
-        LOGGER.info("Starting Bronze ingest for %s", table)
-        df = ingest_fn()
+        df = ingest_bronze_entity(
+            spark,
+            dbutils,
+            entity_name=job.entity_name,
+            source_path=job.source_path,
+            source_file_name=job.source_file_name,
+            table_name=job.table_name,
+            schema=job.schema,
+        )
         rows = int(df.count())
-        dur = time.perf_counter() - started
-        LOGGER.info("Finished %s: %s rows in %.1fs", table, rows, dur)
-        return IngestResult(table, rows, dur, "SUCCESS")
+        duration_s = time.perf_counter() - started
+        return IngestResult(
+            table=job.entity_name,
+            rows_ingested=rows,
+            duration_s=duration_s,
+            status="SUCCESS",
+        )
     except Exception as exc:
-        dur = time.perf_counter() - started
-        LOGGER.exception("Failed %s after %.1fs: %s", table, dur, exc)
-        return IngestResult(table, 0, dur, "FAILED", str(exc))
+        duration_s = time.perf_counter() - started
+        LOGGER.exception(
+            "%s Bronze ingest failed after %.3f seconds",
+            job.entity_name,
+            duration_s,
+        )
+        return IngestResult(
+            table=job.entity_name,
+            rows_ingested=0,
+            duration_s=duration_s,
+            status="FAILED",
+            error=str(exc),
+        )
+
+
+def get_overall_status(results: list[IngestResult]) -> str:
+    """Calculate the overall status from entity results.
+
+    Args:
+        results: Results from all configured ingest jobs.
+
+    Returns:
+        ``SUCCESS`` when all pass, ``FAILED`` when none pass, otherwise
+        ``PARTIAL``.
+    """
+    successes = sum(result.status == "SUCCESS" for result in results)
+    if successes == len(results):
+        return "SUCCESS"
+    if successes == 0:
+        return "FAILED"
+    return "PARTIAL"
+
+
+def print_summary(
+    results: list[IngestResult],
+    overall_status: str,
+    total_duration_s: float,
+) -> None:
+    """Print the requested per-table Bronze ingestion summary.
+
+    Args:
+        results: Per-entity ingestion results.
+        overall_status: SUCCESS, PARTIAL, or FAILED.
+        total_duration_s: End-to-end elapsed seconds.
+    """
+    print("\n========== Bronze ingest summary ==========")
+    print(
+        f"| {'Table':<10} | {'Rows Ingested':>13} | "
+        f"{'Duration (s)':>12} | {'Status':<7} |"
+    )
+    print(f"|{'-' * 12}|{'-' * 15}|{'-' * 14}|{'-' * 9}|")
+    for result in results:
+        print(
+            f"| {result.table:<10} | {result.rows_ingested:>13,} | "
+            f"{result.duration_s:>12.1f} | {result.status:<7} |"
+        )
+    print(f"Overall status: {overall_status}")
+    print(f"Total duration (s): {total_duration_s:.1f}")
+    print("==========================================\n")
 
 
 def ingest_all() -> str:
-    wall_start = time.perf_counter()
-    LOGGER.info("Bronze ingest_all started")
+    """Run customers, orders, and products Bronze ingestion in sequence.
 
-    ensure_unity_storage(spark)
+    Returns:
+        Overall status: SUCCESS, PARTIAL, or FAILED.
+    """
+    started = time.perf_counter()
+    LOGGER.info("Bronze orchestration started")
 
-    results = [_run_one(table, fn) for table, fn in INGEST_JOBS]
+    try:
+        ensure_unity_storage(spark)
+    except Exception:
+        LOGGER.exception("Unity Catalog setup failed; attempting each job")
 
-    total = time.perf_counter() - wall_start
-    ok = sum(1 for r in results if r.status == "SUCCESS")
-    overall = "SUCCESS" if ok == len(results) else ("FAILED" if ok == 0 else "PARTIAL")
-
-    # Print summary
-    print("\n========== Bronze ingest summary ==========")
-    print(f"| {'Table':<10} | {'Rows':>13} | {'Duration':>10} | {'Status':<7} |")
-    print(f"|{'-'*12}|{'-'*15}|{'-'*12}|{'-'*9}|")
-    for r in results:
-        print(f"| {r.table:<10} | {r.rows_ingested:>13,} | {r.duration_s:>9.1f}s | {r.status:<7} |")
-    print(f"Overall: {overall} | Total: {total:.1f}s")
-    print("==========================================\n")
-
-    return overall
+    results = [run_ingest_job(job) for job in INGEST_JOBS]
+    duration_s = time.perf_counter() - started
+    overall_status = get_overall_status(results)
+    print_summary(results, overall_status, duration_s)
+    LOGGER.info(
+        "Bronze orchestration completed in %.3f seconds with status %s",
+        duration_s,
+        overall_status,
+    )
+    return overall_status
 
 
-# Auto-run when executed via %run in Databricks
 ingest_all()

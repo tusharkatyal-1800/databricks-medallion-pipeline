@@ -61,9 +61,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Bronze
 - **File(s):** `src/bronze/02_ingest_customers.py`
 - **Input:** `/Volumes/ecommerce/medallion/data/raw/customers.csv`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/bronze/customers` and table
-  `ecommerce.medallion.bronze_customers`
+- **Output:** Managed Delta table `ecommerce.medallion.bronze_customers`
 - **Acceptance Criteria:**
   - Uses an explicit all-STRING source schema; schema inference is disabled
   - Preserves every CSV record and source value without cleansing or dedupe
@@ -78,9 +76,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Bronze
 - **File(s):** `src/bronze/03_ingest_products.py`
 - **Input:** `/Volumes/ecommerce/medallion/data/raw/products.csv`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/bronze/products` and table
-  `ecommerce.medallion.bronze_products`
+- **Output:** Managed Delta table `ecommerce.medallion.bronze_products`
 - **Acceptance Criteria:**
   - Uses the explicit all-STRING products schema
   - Preserves all 500 source rows without cleansing
@@ -93,8 +89,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Bronze
 - **File(s):** `src/bronze/04_ingest_orders.py`
 - **Input:** `/Volumes/ecommerce/medallion/data/raw/orders.csv`
-- **Output:** Delta data at `/Volumes/ecommerce/medallion/data/bronze/orders`
-  and table `ecommerce.medallion.bronze_orders`
+- **Output:** Managed Delta table `ecommerce.medallion.bronze_orders`
 - **Acceptance Criteria:**
   - Uses an explicit all-STRING orders schema
   - Preserves nulls, orphans, negative values, malformed dates, and duplicates
@@ -139,9 +134,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Silver
 - **File(s):** `src/silver/01_process_customers.py`
 - **Input:** `ecommerce.medallion.bronze_customers`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/silver/customers` and table
-  `ecommerce.medallion.customers_silver`
+- **Output:** Managed Delta table `ecommerce.medallion.customers_silver`
 - **Acceptance Criteria:**
   - Runs completeness on `email`, uniqueness on `customer_id`, and documented
     email/date/segment/LTV type checks
@@ -157,9 +150,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Silver
 - **File(s):** `src/silver/02_process_products.py`
 - **Input:** `ecommerce.medallion.bronze_products`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/silver/products` and table
-  `ecommerce.medallion.products_silver`
+- **Output:** Managed Delta table `ecommerce.medallion.products_silver`
 - **Acceptance Criteria:**
   - Runs completeness and uniqueness on product fields
   - Validates positive price/cost and non-negative integer stock/reorder values
@@ -173,8 +164,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **File(s):** `src/silver/03_process_orders.py`
 - **Input:** `ecommerce.medallion.bronze_orders`,
   `ecommerce.medallion.bronze_customers`, and `ecommerce.medallion.bronze_products`
-- **Output:** Delta data at `/Volumes/ecommerce/medallion/data/silver/orders`
-  and table `ecommerce.medallion.orders_silver`
+- **Output:** Managed Delta table `ecommerce.medallion.orders_silver`
 - **Acceptance Criteria:**
   - Detects 100 null customer IDs and 200 null product IDs, accounting for any
     deliberate overlap in row-level counts
@@ -193,9 +183,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **File(s):** `src/silver/04_build_quality_metrics.py`
 - **Input:** `ecommerce.medallion.customers_silver`,
   `ecommerce.medallion.orders_silver`, and `ecommerce.medallion.products_silver`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/silver/quality_metrics` and table
-  `ecommerce.medallion.quality_metrics`
+- **Output:** Managed Delta table `ecommerce.medallion.quality_metrics`
 - **Acceptance Criteria:**
   - Produces one row per table/check/run
   - Includes `check_name`, `total_rows`, `passed`, `failed`, and
@@ -229,9 +217,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **File(s):** `src/gold/01_sales_by_product.py`
 - **Input:** `ecommerce.medallion.orders_silver` and
   `ecommerce.medallion.products_silver`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/gold/sales_by_product` and table
-  `ecommerce.medallion.sales_by_product`
+- **Output:** Managed Delta table `ecommerce.medallion.sales_by_product`
 - **Acceptance Criteria:**
   - Uses only `PASS` and `Completed` orders joined to PASS products
   - Produces one row per `product_id`
@@ -246,9 +232,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **File(s):** `src/gold/02_revenue_by_customer.py`
 - **Input:** `ecommerce.medallion.orders_silver` and
   `ecommerce.medallion.customers_silver`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/gold/revenue_by_customer` and table
-  `ecommerce.medallion.revenue_by_customer`
+- **Output:** Managed Delta table `ecommerce.medallion.revenue_by_customer`
 - **Acceptance Criteria:**
   - Uses only `PASS` and `Completed` orders joined to PASS customers
   - Produces one row per `customer_id`
@@ -262,8 +246,7 @@ paths under `/Volumes/ecommerce/medallion/data/`. Tasks are ordered by dependenc
 - **Layer:** Gold
 - **File(s):** `src/gold/03_customer_segmentation.py`
 - **Input:** `ecommerce.medallion.revenue_by_customer`
-- **Output:** Delta data at
-  `/Volumes/ecommerce/medallion/data/gold/customer_segmentation` and table
+- **Output:** Managed Delta table
   `ecommerce.medallion.customer_segmentation`
 - **Acceptance Criteria:**
   - Produces at most one row for each Premium, Standard, and Basic segment

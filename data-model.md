@@ -1,26 +1,27 @@
 ﻿# Data Model
 
 Unity Catalog: catalog `ecommerce`, schema `medallion`.  
-Bronze/Silver source fields are **STRING** so planted defects are not coerced to null. Gold uses numeric/date types after Silver `PASS` filters.  
+Bronze uses explicit typed schemas from `src/bronze/schemas.py`. Silver retains
+those source types and adds quality flags. Gold uses business aggregation types.  
 `ingestion_timestamp` / `source_file_name` are pipeline metadata (not in the CSVs).
 
 ---
 
 ## Bronze Layer Tables
 
-Locations: `/Volumes/ecommerce/medallion/data/bronze/{customers|orders|products}`.
+Storage: managed Unity Catalog Delta tables (no Volume table locations).
 
 ### `ecommerce.medallion.bronze_customers`
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
-| `customer_id` | `STRING` | YES | Natural key from CSV; duplicates and blanks possible. |
+| `customer_id` | `INT` | YES | Natural key from CSV; duplicates possible. |
 | `customer_name` | `STRING` | YES | Display name. |
 | `email` | `STRING` | YES | Contact email; ~50 planted nulls. |
 | `country` | `STRING` | YES | Country name or code as delivered. |
-| `signup_date` | `STRING` | YES | Calendar date as text (`yyyy-MM-dd`); not inferred to `DATE`. |
+| `signup_date` | `DATE` | YES | Calendar signup date parsed with `yyyy-MM-dd`. |
 | `customer_segment` | `STRING` | YES | Expected `Premium` / `Standard` / `Basic`; invalid values possible. |
-| `lifetime_value` | `STRING` | YES | Source LTV as text (may be non-numeric). |
+| `lifetime_value` | `DECIMAL(10,2)` | YES | Source lifetime value. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
 | `source_file_name` | `STRING` | NO | Source file name or Volume path of `customers.csv`. |
 
@@ -30,15 +31,15 @@ Grain: one row per CSV record (not necessarily unique on `customer_id`). Expecte
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
-| `order_id` | `STRING` | YES | Natural key; ~20 planted duplicate ids. |
-| `customer_id` | `STRING` | YES | FK to customers; ~100 nulls + ~50 orphans. |
-| `order_date` | `STRING` | YES | Order calendar date as text. |
-| `product_id` | `STRING` | YES | FK to products; ~200 nulls + ~30 orphans. |
-| `quantity` | `STRING` | YES | Units as text; may be negative or non-integer. |
-| `unit_price` | `STRING` | YES | Unit price as text. |
-| `total_amount` | `STRING` | YES | Line total as text; may not equal qty × price. |
+| `order_id` | `INT` | YES | Natural key; ~20 planted duplicate ids. |
+| `customer_id` | `INT` | YES | FK to customers; ~100 nulls + planted orphans. |
+| `order_date` | `DATE` | YES | Order calendar date parsed with `yyyy-MM-dd`. |
+| `product_id` | `INT` | YES | FK to products; ~200 nulls + ~30 orphans. |
+| `quantity` | `INT` | YES | Units; negative/zero values can be quality failures. |
+| `unit_price` | `DECIMAL(10,2)` | YES | Unit price. |
+| `total_amount` | `DECIMAL(10,2)` | YES | Line total; may not equal qty × price. |
 | `order_status` | `STRING` | YES | Expected `Pending` / `Completed` / `Cancelled`. |
-| `payment_date` | `STRING` | YES | Nullable by design; text date when present. |
+| `payment_date` | `DATE` | YES | Nullable by design. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
 | `source_file_name` | `STRING` | NO | Source file name or Volume path of `orders.csv`. |
 
@@ -48,13 +49,13 @@ Grain: one row per CSV record. Expected ~100,020 rows with 20 extra duplicate-ke
 
 | Column | Data type | Nullable | Description |
 | --- | --- | --- | --- |
-| `product_id` | `STRING` | YES | Natural key. |
+| `product_id` | `INT` | YES | Natural key. |
 | `product_name` | `STRING` | YES | Product display name. |
 | `category` | `STRING` | YES | Merchandise category. |
-| `price` | `STRING` | YES | List price as text. |
-| `cost` | `STRING` | YES | Unit cost as text. |
-| `stock_quantity` | `STRING` | YES | On-hand units as text. |
-| `reorder_level` | `STRING` | YES | Reorder threshold as text. |
+| `price` | `DECIMAL(10,2)` | YES | List price. |
+| `cost` | `DECIMAL(10,2)` | YES | Unit cost. |
+| `stock_quantity` | `INT` | YES | On-hand units. |
+| `reorder_level` | `INT` | YES | Reorder threshold. |
 | `ingestion_timestamp` | `TIMESTAMP` | NO | Time the Bronze write ran. |
 | `source_file_name` | `STRING` | NO | Source file name or Volume path of `products.csv`. |
 
@@ -64,8 +65,8 @@ Grain: one row per CSV record (~500 rows).
 
 ## Silver Layer Tables
 
-Locations: `/Volumes/ecommerce/medallion/data/silver/{table_name}`.  
-Each entity table = **all Bronze rows** (same count) + quality columns. Original payload columns stay `STRING`.
+Storage: managed Unity Catalog Delta tables.  
+Each entity table = **all Bronze rows** (same count) + quality columns.
 
 Shared quality columns (all three entity tables):
 
@@ -104,7 +105,7 @@ All `products_bronze` columns **plus** the shared quality columns.
 
 ### `ecommerce.medallion.quality_metrics`
 
-Location: `/Volumes/ecommerce/medallion/data/silver/quality_metrics`.  
+Storage: managed Unity Catalog Delta table.  
 Grain: one row per `(batch_timestamp, table_name, check_name)`.
 
 | Column | Data type | Nullable | Description |
@@ -124,7 +125,7 @@ Grain: one row per `(batch_timestamp, table_name, check_name)`.
 
 ## Gold Layer Tables
 
-Locations: `/Volumes/ecommerce/medallion/data/gold/{table_name}`.  
+Storage: managed Unity Catalog Delta tables.  
 Population: Silver **PASS** orders with `order_status = 'Completed'`, joined to PASS customers/products. Full **overwrite** each run.
 
 ### `ecommerce.medallion.sales_by_product`

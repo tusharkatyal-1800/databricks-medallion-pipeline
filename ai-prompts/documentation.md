@@ -119,7 +119,7 @@ Based on the analysis of the requirements above, please assist me in creating a 
    - Dataflow: CSV -> Volume Upload -> Bronze (Delta) -> Silver (Delta) -> Gold (Delta) -> Dashboard
    - Describe the separation of concerns between layers
 2. Bronze Layer Design
-   - Path naming convention (e.g., `/Volumes/ecommerce/medallion/data/bronze/{table_name}`)
+   - Raw path naming convention and managed table naming convention
    - Schema inference vs. schema definition - which to choose and why?
    - Metadata columns to add: ingestion_timestamp, source_file_name
    - Delta table properties
@@ -229,7 +229,7 @@ Format:
 - **Layer:** Bronze/Silver/Gold/Dashboard
 - **File(s):** src/bronze/01_ingest_customers.py
 - **Input:** CSV file located at `/Volumes/ecommerce/medallion/data/raw/customers.csv`
-- **Output:** Delta table at `/Volumes/ecommerce/medallion/data/bronze/customers`
+- **Output:** Managed Delta table `ecommerce.medallion.bronze_customers`
 - **Acceptance Criteria:** 
   - Table contains 10,000 records
   - Schema conforms to data model

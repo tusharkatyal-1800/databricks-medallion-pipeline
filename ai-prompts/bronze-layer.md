@@ -72,10 +72,10 @@ Canonical Volume root:
 /Volumes/ecommerce/medallion/data/
 Path layout:
 - Raw CSV: /Volumes/ecommerce/medallion/data/raw/{customers,orders,products}.csv
-- Bronze Delta: /Volumes/ecommerce/medallion/data/bronze/{customers,orders,products}
-- Silver Delta: /Volumes/ecommerce/medallion/data/silver/{customers,orders,products}
-- Quality metrics: /Volumes/ecommerce/medallion/data/silver/quality_metrics
-- Gold Delta: /Volumes/ecommerce/medallion/data/gold/{sales_by_product,revenue_by_customer,customer_segmentation}
+- Bronze Delta: managed tables ecommerce.medallion.bronze_{customers,orders,products}
+- Silver Delta: managed tables ecommerce.medallion.{customers,orders,products}_silver
+- Quality metrics: managed table ecommerce.medallion.quality_metrics
+- Gold Delta: managed tables under ecommerce.medallion
 Three-level table names:
 - ecommerce.medallion.bronze_customers
 - ecommerce.medallion.bronze_orders
@@ -124,7 +124,7 @@ Write `src/bronze/01_ingest_customers.py` — a Python script for Databricks not
 
 Requirements:
 - Source: /Volumes/ecommerce/medallion/data/raw/customers.csv
-- Destination: Delta table at /Volumes/ecommerce/medallion/data/bronze/customers
+- Destination: managed Delta table ecommerce.medallion.bronze_customers
 - Explicit schema from schemas.py, don't use `inferSchema`
 - Metadata columns:
   - `_ingestion_timestamp`: `current_timestamp()`
@@ -150,7 +150,7 @@ Behavior
 
 Reads /Volumes/ecommerce/medallion/data/raw/customers.csv with CUSTOMERS_SCHEMA (no inferSchema)
 Adds _ingestion_timestamp, _source_file (customers.csv), _batch_id (UUID)
-Overwrites Delta at /Volumes/ecommerce/medallion/data/bronze/customers
+Overwrites managed Delta table ecommerce.medallion.bronze_customers
 Registers Unity Catalog table ecommerce.medallion.bronze_customers (CREATE TABLE IF NOT EXISTS … USING DELTA LOCATION)
 Logs bytes, schema, and row counts before/after; fails if the source is missing, empty, or counts differ
 try/except around dbutils.fs.ls, CSV read, Delta write, and SQL register
@@ -215,7 +215,7 @@ Source
 /Volumes/ecommerce/medallion/data/raw/orders.csv
 
 Target
-/Volumes/ecommerce/medallion/data/bronze/orders
+ecommerce.medallion.bronze_orders
 
 Table
 ecommerce.medallion.bronze_orders
@@ -263,7 +263,7 @@ Source
 /Volumes/ecommerce/medallion/data/raw/products.csv
 
 Target
-/Volumes/ecommerce/medallion/data/bronze/products
+ecommerce.medallion.bronze_products
 
 Table
 ecommerce.medallion.bronze_products
