@@ -28,12 +28,12 @@ if not logging.getLogger().handlers:
         format="%(asctime)s %(levelname)s %(name)s - %(message)s",
     )
 
-BRONZE_DIR = Path(__file__).resolve().parent
 INGEST_JOBS = (
     ("customers", "01_ingest_customers.py", "ingest_customers"),
     ("orders", "02_ingest_orders.py", "ingest_orders"),
     ("products", "03_ingest_products.py", "ingest_products"),
 )
+CUSTOMERS_SCRIPT = "01_ingest_customers.py"
 
 
 @dataclass
@@ -55,6 +55,98 @@ class IngestResult:
     error: str | None = None
 
 
+def _folder_has_ingest_scripts(folder: Path) -> bool:
+    """Return True if ``folder`` contains the customers ingest script.
+
+    Args:
+        folder: Candidate ``src/bronze`` directory.
+
+    Returns:
+        True when ``01_ingest_customers.py`` exists in ``folder``.
+    """
+    return (folder / CUSTOMERS_SCRIPT).is_file()
+
+
+def _databricks_notebook_folder() -> Path | None:
+    """Resolve this notebook's folder from Databricks context.
+
+    Databricks notebooks do not define ``__file__``. The workspace path is
+    ``/Workspace`` plus the notebook path from ``dbutils``.
+
+    Returns:
+        Parent folder of this notebook, or None if not on Databricks.
+    """
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+    except Exception:
+        return None
+    if not notebook_path:
+        return None
+    relative = str(notebook_path).lstrip("/")
+    candidates = (
+        Path("/Workspace") / relative,
+        Path(notebook_path),
+    )
+    for candidate in candidates:
+        parent = candidate.parent
+        if _folder_has_ingest_scripts(parent):
+            return parent
+    return (Path("/Workspace") / relative).parent
+
+
+def resolve_bronze_dir() -> Path:
+    """Locate ``src/bronze`` on a laptop or in a Databricks notebook.
+
+    Args:
+        None.
+
+    Returns:
+        Absolute path to the folder that contains the ingest scripts.
+
+    Raises:
+        FileNotFoundError: If the ingest scripts cannot be found.
+    """
+    try:
+        from_file = Path(__file__).resolve().parent
+        if _folder_has_ingest_scripts(from_file):
+            LOGGER.info("Bronze scripts directory (from __file__): %s", from_file)
+            return from_file
+    except (NameError, OSError, TypeError):
+        LOGGER.info("__file__ is not available; using Databricks notebook path")
+
+    notebook_folder = _databricks_notebook_folder()
+    if notebook_folder is not None and _folder_has_ingest_scripts(notebook_folder):
+        LOGGER.info(
+            "Bronze scripts directory (Databricks notebook): %s",
+            notebook_folder,
+        )
+        return notebook_folder
+
+    cwd = Path.cwd()
+    search_roots = (
+        cwd / "src" / "bronze",
+        cwd / "bronze",
+        cwd,
+        cwd.parent / "src" / "bronze",
+    )
+    for candidate in search_roots:
+        if _folder_has_ingest_scripts(candidate):
+            LOGGER.info("Bronze scripts directory (cwd search): %s", candidate)
+            return candidate.resolve()
+
+    raise FileNotFoundError(
+        "Cannot resolve src/bronze. Databricks notebooks do not set __file__. "
+        "Place ingest_all.py next to 01_ingest_customers.py in the Repo, "
+        f"or run with cwd at the repo root. cwd={cwd}"
+    )
+
+
 def _load_ingest_module(module_name: str, filename: str) -> ModuleType:
     """Load an ingest script by file path (names start with digits).
 
@@ -69,7 +161,7 @@ def _load_ingest_module(module_name: str, filename: str) -> ModuleType:
         FileNotFoundError: If the script is missing.
         ImportError: If the module cannot be executed.
     """
-    path = BRONZE_DIR / filename
+    path = resolve_bronze_dir() / filename
     if not path.exists():
         raise FileNotFoundError(f"Ingest script not found: {path}")
     spec = importlib.util.spec_from_file_location(module_name, path)

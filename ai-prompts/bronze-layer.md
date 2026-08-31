@@ -327,13 +327,27 @@ Guarded the three ingest entrypoints so the orchestrator can import them without
 _TODO_
 
 
-## Prompt 1:
+## Iteration 1: Update in ingest_all.py
 
 **PROMPT SENT:**
-_TODO_
+"BRONZE_DIR = Path(__file__).resolve().parent" in ingest_all.py
+databricks is unable to resolve this line.Please check 
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+Databricks notebooks do not define __file__, so Path(__file__).resolve().parent fails there.
+
+ingest_all.py now finds src/bronze in this order:
+
+__file__ when it exists (local Python)
+Databricks notebook folder: /Workspace + dbutils notebook path
+Search from the current working directory for 01_ingest_customers.py
+Re-run ingest_all.py on the cluster. The log should show a line like Bronze scripts directory (Databricks notebook): /Workspace/Repos/.../src/bronze.
+
+Documentation summary
+
+Databricks notebooks have no __file__; that was breaking BRONZE_DIR.
+ingest_all.py now resolves the bronze folder via notebook context, then cwd.
+Re-run the orchestrator notebook after this change.
 
 **YOUR EVALUATION:**
 _TODO_
