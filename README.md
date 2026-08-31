@@ -8,7 +8,7 @@ E-commerce data pipeline using Bronze → Silver → Gold on Databricks with Uni
 | **Silver** | Four quality checks; flag bad rows, never delete them |
 | **Gold** | Aggregations for dashboards |
 
-This README covers **how to run Bronze, then Silver**, in a Databricks workspace. Gold is not in this guide yet.
+This README covers **how to run Bronze, then Silver, then Gold**, in a Databricks workspace.
 
 ---
 
@@ -45,7 +45,7 @@ Keep the repo folder structure intact (`src/bronze/`, `src/silver/`, `src/common
 
 1. In Databricks: **Workspace** → **Create** → **Git folder** (or Repos).
 2. Clone this GitHub repository.
-3. Confirm you can see `src/bronze/ingest_all.py` and `src/silver/create_silver_tables.py`.
+3. Confirm you can see `src/bronze/ingest_all.py`, `src/silver/create_silver_tables.py`, and `src/gold/create_gold_tables.py`.
 
 Typical path:
 
@@ -267,6 +267,76 @@ Run all on `create_silver_tables.py` again. Writes use overwrite, so counts must
 
 ---
 
+## 9. Run the Gold layer
+
+Silver must already show `SUCCESS`. Gold reads only **clean** Silver rows (`quality_check_result = 'PASS'`) and **Completed** orders for revenue. Use the same **all-purpose cluster**. `create_gold_tables.py` is Python, so a SQL warehouse will fail.
+
+Gold is a **query filter**, not a delete of Silver. Re-runs overwrite the managed Gold tables.
+
+### What Gold produces
+
+| Managed table | Grain | Typical rows on this sample |
+|---|---|---|
+| `ecommerce.medallion.sales_by_product` | `product_id` | 500 |
+| `ecommerce.medallion.revenue_by_customer` | `customer_id` | ~8,800 (customers with at least one PASS Completed order) |
+| `ecommerce.medallion.sales_daily_trends` | calendar day | 1,096 (2023-01-01 through 2025-12-31) |
+| `ecommerce.medallion.sales_weekly_trends` | week start | ~158 |
+| `ecommerce.medallion.customer_segmentation` | value segment | 5 (High-Value, Repeat, One-Time, Inactive, Other) |
+
+Do **not** write Gold with `LOCATION '/Volumes/...'` or `dbfs:/FileStore/...`.
+
+`revenue_by_customer` is **not** 10,000 rows: customers without a PASS Completed order are omitted. `sales_by_product` at 500 means every product had at least one qualifying order.
+
+### Run the orchestrator
+
+1. Sync the repo so Databricks has `src/gold/*.sql` next to `create_gold_tables.py`.
+2. Open `src/gold/create_gold_tables.py`.
+3. Attach the all-purpose cluster.
+4. **Run all**.
+
+It executes SQL in order: `01` → `02` → `03` → `04` (`04` needs `02`). You do not need to open the `.sql` files unless you are debugging one aggregation.
+
+### Expected success
+
+Logs end with `SUCCESS` and a summary like:
+
+```text
+========== Gold aggregation summary ==========
+| Gold Table                   |       Rows | Duration (s) | Status  |
+| sales_by_product             |        500 |         25.7 | SUCCESS |
+| revenue_by_customer          |      8,782 |          7.6 | SUCCESS |
+| sales_daily_trends           |      1,096 |          6.5 | SUCCESS |
+| sales_weekly_trends          |        158 |          4.4 | SUCCESS |
+| customer_segmentation        |          5 |          4.6 | SUCCESS |
+Overall status: SUCCESS
+```
+
+Times vary. Row counts should stay in these ranges, not 10,000 for segmentation (that table is a rollup).
+
+### Verify in SQL
+
+After the Python job (warehouse is fine here):
+
+```sql
+SELECT * FROM ecommerce.medallion.sales_by_product
+ORDER BY total_revenue DESC LIMIT 10;
+
+SELECT * FROM ecommerce.medallion.revenue_by_customer
+ORDER BY total_revenue DESC LIMIT 10;
+
+SELECT * FROM ecommerce.medallion.customer_segmentation
+ORDER BY total_revenue DESC;
+
+SELECT * FROM ecommerce.medallion.sales_daily_trends
+ORDER BY order_date DESC LIMIT 14;
+```
+
+### Re-run Gold
+
+Run all on `create_gold_tables.py` again. `CREATE OR REPLACE TABLE` keeps the same grains; counts must not double.
+
+---
+
 ## Troubleshooting
 
 ### `Unsupported cell during execution. SQL warehouses only support executing SQL cells.`
@@ -295,11 +365,17 @@ If the project lives under Repos, use that path instead, for example `/Workspace
 
 ### `NotebookImportException: ... appears to be a notebook`
 
-Only entry-point notebooks have `# Databricks notebook source` (`ingest_all.py`, `create_silver_tables.py`, and numbered `01_`–`05_` scripts). Shared modules (`ingestion.py`, `schemas.py`, `config.py`, `completeness.py`, `uniqueness.py`, `type_validation.py`, `referential.py`, `business_logic.py`) must **not** have that header. Do not `%run` library modules; import them.
+Only entry-point notebooks have `# Databricks notebook source` (`ingest_all.py`, `create_silver_tables.py`, `create_gold_tables.py`, and numbered `01_`–`05_` scripts). Shared modules (`ingestion.py`, `schemas.py`, `config.py`, `completeness.py`, `uniqueness.py`, `type_validation.py`, `referential.py`, `business_logic.py`) must **not** have that header. Gold `.sql` files start with `-- Databricks notebook source`. Do not `%run` library modules; import them.
 
 ### Silver cannot find Bronze tables
 
 Run `src/bronze/ingest_all.py` first and confirm `ecommerce.medallion.bronze_*` exist. Then run `create_silver_tables.py`.
+
+### Gold cannot find Silver tables or `.sql` files
+
+- Run `src/silver/create_silver_tables.py` first.
+- Confirm `src/gold/01_*.sql` through `04_*.sql` are synced next to `create_gold_tables.py`.
+- If the log never prints `Gold SQL directory: .../src/gold`, the notebook could not see those files.
 
 ### Zero rows or empty file errors
 
@@ -353,4 +429,12 @@ Then upload the new files to the Volume `raw/` folder again.
 | `src/silver/referential.py` | LEFT ANTI JOIN helpers |
 | `src/silver/business_logic.py` | Extra consistency helpers |
 
-Gold notebooks are not required for Bronze or Silver.
+## Gold files
+
+| File | Role |
+|---|---|
+| `src/gold/create_gold_tables.py` | Orchestrator notebook — **run this** after Silver |
+| `src/gold/01_sales_by_product.sql` | Sales by product |
+| `src/gold/02_revenue_by_customer.sql` | Revenue by customer |
+| `src/gold/03_daily_weekly_trends.sql` | Daily and weekly trends |
+| `src/gold/04_customer_segmentation.sql` | Value segments (needs `02`) |
