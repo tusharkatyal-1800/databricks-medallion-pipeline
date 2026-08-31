@@ -8,7 +8,7 @@ E-commerce data pipeline using Bronze → Silver → Gold on Databricks with Uni
 | **Silver** | Four quality checks; flag bad rows, never delete them |
 | **Gold** | Aggregations for dashboards |
 
-This README covers **how to run Bronze, then Silver, then Gold**, in a Databricks workspace.
+This README covers **how to run Bronze, then Silver, then Gold**, and how to build the **SQL dashboard**, in a Databricks workspace.
 
 ---
 
@@ -337,6 +337,70 @@ Run all on `create_gold_tables.py` again. `CREATE OR REPLACE TABLE` keeps the sa
 
 ---
 
+## 10. Build the Databricks SQL dashboard
+
+Gold tables must exist. The dashboard uses a **SQL warehouse**, not the all-purpose cluster.
+
+Queries are in `src/dashboard/dashboard_queries.sql` (**queries 1–9 only**). Full click-path: `src/dashboard/DASHBOARD_GUIDE.md`.
+
+### Charts
+
+| # | Chart | Table |
+|---|---|---|
+| 1 | Top 10 products (bar) | `sales_by_product` |
+| 2 | Customer revenue buckets (bar) | `revenue_by_customer` |
+| 3 | Value segments (pie) — X/`Group by` = `segment_type`, Y = Sum `customer_count` | `customer_segmentation` |
+| 4 | Data quality (table) | `quality_metrics` |
+| 5 | KPI counters | `sales_daily_trends` |
+| 6 | Daily revenue (line) | `sales_daily_trends` |
+| 7 | Weekly revenue (line) | `sales_weekly_trends` |
+| 8 | Revenue by category (bar) | `sales_by_product` |
+| 9 | Top 10 customers (bar/table) | `revenue_by_customer` |
+
+### Steps in Databricks
+
+1. Open **SQL Editor**, attach a running **SQL warehouse**.
+2. Smoke test: `SELECT COUNT(*) FROM ecommerce.medallion.sales_by_product;`
+3. Open **Dashboards** → **Create dashboard**. Name it `E-commerce Medallion`.
+4. **Add data** / **Create from SQL**. Paste **one** `SELECT` from `dashboard_queries.sql` per dataset. Saved queries in SQL Editor often **do not** appear on the canvas — paste SQL again.
+5. **Add visualization** for each dataset (bar / pie / line / counter / table).
+6. Optional filters: `category`, `order_date` (Query 6), `segment_type` (Query 3). Date filters do not apply to product/customer snapshot charts.
+7. **Publish**.
+
+### Export from Databricks (put the file here)
+
+In the dashboard: **⋯** / **File** → **Export** / **Download**. Save the `.lvdash.json` into `src/dashboard/`.
+
+**Exported dashboard (replace or keep this file after you download it):**
+
+- [`src/dashboard/E-commerce Medallion.lvdash.json`](src/dashboard/E-commerce%20Medallion.lvdash.json)
+
+To import on another workspace: **Dashboards** → **Import** → choose that JSON. Gold tables must exist in `ecommerce.medallion`.
+
+### Dashboard screenshots
+
+Captures from the published **E-commerce Medallion** dashboard (SQL warehouse, Gold tables).
+
+**KPIs, top 10 products, and customer revenue buckets**
+
+![KPIs, top products, revenue buckets](src/dashboard/screenshots/01-kpis-products-buckets.png)
+
+**Daily and weekly revenue trends, plus value-segment pie**
+
+![Trends and customer segments](src/dashboard/screenshots/02-trends-and-segments.png)
+
+**Revenue by category and top 10 customers**
+
+![Category mix and top customers](src/dashboard/screenshots/03-category-and-customers.png)
+
+**Category mix, top customers, and Silver quality metrics table**
+
+![Category, customers, and data quality](src/dashboard/screenshots/04-category-customers-quality.png)
+
+Replace these PNGs in `src/dashboard/screenshots/` if you recapture the dashboard.
+
+---
+
 ## Troubleshooting
 
 ### `Unsupported cell during execution. SQL warehouses only support executing SQL cells.`
@@ -376,6 +440,12 @@ Run `src/bronze/ingest_all.py` first and confirm `ecommerce.medallion.bronze_*` 
 - Run `src/silver/create_silver_tables.py` first.
 - Confirm `src/gold/01_*.sql` through `04_*.sql` are synced next to `create_gold_tables.py`.
 - If the log never prints `Gold SQL directory: .../src/gold`, the notebook could not see those files.
+
+### Dashboard has no data / cannot find saved queries
+
+- Use a **SQL warehouse**, not the all-purpose cluster.
+- On a Lakeview dashboard, **Add data** and paste SQL; saved SQL Editor queries often do not list there.
+- Confirm Gold tables exist: `ecommerce.medallion.sales_by_product`.
 
 ### Zero rows or empty file errors
 
@@ -438,3 +508,12 @@ Then upload the new files to the Volume `raw/` folder again.
 | `src/gold/02_revenue_by_customer.sql` | Revenue by customer |
 | `src/gold/03_daily_weekly_trends.sql` | Daily and weekly trends |
 | `src/gold/04_customer_segmentation.sql` | Value segments (needs `02`) |
+
+## Dashboard files
+
+| File | Role |
+|---|---|
+| `src/dashboard/dashboard_queries.sql` | Queries 1–9 for Databricks SQL |
+| `src/dashboard/DASHBOARD_GUIDE.md` | Detailed click-path |
+| `src/dashboard/E-commerce Medallion.lvdash.json` | **Exported dashboard** from Databricks (replace after re-export) |
+| `src/dashboard/screenshots/` | PNG/JPG captures for the README placeholders |
