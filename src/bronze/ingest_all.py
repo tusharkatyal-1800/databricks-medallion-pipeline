@@ -20,6 +20,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.getOrCreate()
+
+try:
+    dbutils  # noqa: F821
+except NameError:
+    from pyspark.dbutils import DBUtils
+    dbutils = DBUtils(spark)
+
+
 LOGGER = logging.getLogger("bronze.ingest_all")
 
 # Ensure src/ is on sys.path so ingest scripts can import common.config
