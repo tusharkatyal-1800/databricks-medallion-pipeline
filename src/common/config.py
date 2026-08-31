@@ -39,6 +39,8 @@ GOLD_REVENUE_BY_CUSTOMER_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.revenue_by_customer"
 GOLD_CUSTOMER_SEGMENTATION_TABLE = (
     f"{UC_CATALOG}.{UC_SCHEMA}.customer_segmentation"
 )
+GOLD_SALES_DAILY_TRENDS_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.sales_daily_trends"
+GOLD_SALES_WEEKLY_TRENDS_TABLE = f"{UC_CATALOG}.{UC_SCHEMA}.sales_weekly_trends"
 
 
 def volume_file(*parts: str) -> str:
