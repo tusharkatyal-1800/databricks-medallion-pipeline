@@ -34,9 +34,6 @@ Open src/gold/01_sales_by_product.sql in Databricks.
 Attach a SQL warehouse or an all-purpose cluster (this file is SQL-only, so a warehouse is valid).
 Run all.
 
-**YOUR EVALUATION:**
-_TODO_
-
 ---
 
 ## Prompt 2: Genrating revenue by customer logic
@@ -78,9 +75,6 @@ DATEDIFF(last_order_date, first_order_date)
 lifetime_value_actual
 same as total_revenue
 Run: after Silver (and optionally after 01_sales_by_product.sql). Open the file, attach a SQL warehouse or all-purpose cluster, Run all.
-
-**YOUR EVALUATION:**
-_TODO_
 
 ---
 
@@ -125,9 +119,6 @@ Documentation summary
 Added src/gold/03_daily_weekly_trends.sql and Gold table names in src/common/config.py.
 Daily and weekly managed Delta overwrites; PASS Silver only; Completed vs Cancelled split with window growth %.
 Run after Silver; customer segmentation Gold table is still pending.
-
-**YOUR EVALUATION:**
-_TODO_
 
 ---
 
@@ -174,9 +165,6 @@ Added src/gold/04_customer_segmentation.sql.
 Segments Gold customers from revenue_by_customer; Inactive is checked first.
 Run after 02_revenue_by_customer.sql. CSV Premium/Standard/Basic is unchanged on the customer revenue table.
 
-**YOUR EVALUATION:**
-_TODO_
-
 ---
 
 ## Prompt 5: Single create gold table script with summary
@@ -203,60 +191,3 @@ Documentation summary
 Added src/gold/create_gold_tables.py to run all Gold SQL files, time them, and log row counts.
 Execution order is 01–04; stops after a failed file.
 Run on an all-purpose cluster after Silver; summary includes daily/weekly trend tables as well as the three named aggregations.
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----

@@ -1,5 +1,7 @@
 ﻿# Requirement Analysis
 
+**Implementation snapshot (2026-08-31):** Pipeline is built and ran on Databricks. Bronze `bronze_*` tables are 10,000 / 100,000 / 500. Silver keeps those counts and flags rows. Gold uses `PASS` + `Completed`. Dashboard is Databricks SQL with queries 1–9. Details below that disagree with this snapshot are superseded by **As built**.
+
 ## Problem Statement
 
 The business already has daily extracts of customers, products, and orders, but those files cannot be trusted as-is for reporting. Keys collide, emails and foreign keys go missing, and some orders point at customers or products that do not exist. If those files are loaded straight into a dashboard, revenue, segment mix, and product rank will be wrong, and nobody will be able to explain *which* rows caused the distortion.
@@ -22,33 +24,34 @@ The engineering constraint is as important as the business one: Databricks Unity
 ### Bronze — raw ingestion
 
 - FR-B1: Read `customers.csv`, `orders.csv`, and `products.csv` from `/Volumes/ecommerce/medallion/data/raw/`.
-- FR-B2: Write one Delta table per source (`customers_bronze`, `orders_bronze`, `products_bronze`) with source column names unchanged.
-- FR-B3: Apply no business transformations (no type coercion for cleansing, no dropping nulls, no dedupe, no FK repair). Optional ingest metadata only (`ingest_timestamp`, `source_file_name`) if it does not rewrite source fields.
+- FR-B2: Write one managed Delta table per source (`bronze_customers`, `bronze_orders`, `bronze_products`) with source column names unchanged.
+- FR-B3: Apply no business transformations (no dropping nulls, no dedupe, no FK repair). Typed CSV schema is used only to persist (`INT`/`DATE`/`DECIMAL`); unparsable values become null. Ingest metadata: `_ingestion_timestamp`, `_source_file`, `_batch_id`.
 - FR-B4: Bronze row counts must match the CSV line counts (header excluded), including defective rows.
 
 ### Silver — quality, flag, report
 
 - FR-S1: Read Bronze Delta; emit Silver Delta tables that contain **100% of Bronze rows** (never delete or filter out failures).
 - FR-S2: Apply exactly four checks, recorded as per-check flags plus a roll-up `quality_check_result` (`PASS` if all applicable checks pass; otherwise pipe-delimited tokens such as `COMPLETENESS_FAIL|REFERENTIAL_INTEGRITY_FAIL`):
-  1. **Completeness** — required fields non-null. At minimum: `customer_id` / `customer_name` on customers; `email` is required for a completeness pass even though the sample plants nulls; `order_id`, `customer_id`, `product_id` on orders; `product_id` / `product_name` on products. `payment_date` is **not** a completeness failure (nullable by design).
-  2. **Uniqueness** — `customer_id` unique in customers; `order_id` unique in orders; `product_id` unique in products. Duplicate key rows are all flagged, not silently collapsed.
-  3. **Type / domain validation** — parseable types and allowed values (dates, numeric amounts ≥ 0, `customer_segment` in `{Premium, Standard, Basic}`, `order_status` in `{Pending, Completed, Cancelled}`, email shape when present, `quantity` integer > 0, `price`/`cost` numeric).
-  4. **Referential integrity** — `orders.customer_id` exists in `customers.customer_id`; `orders.product_id` exists in `products.product_id`. Null FKs are completeness failures, not orphans. Orphans are non-null FKs with no parent.
+  1. **Completeness** — planted required fields: customers `email`; orders `customer_id` and `product_id`. Products have no planted completeness fields (`completeness_check = PASS`). `payment_date` is not a completeness failure.
+  2. **Uniqueness** — `customer_id`, `order_id`, `product_id`. **As built:** `row_number()` over the key ordered by `_ingestion_timestamp`; first row PASS, later rows `FAIL_DUPLICATE_{key}` (10 customer extras, 20 order extras).
+  3. **Type / domain validation** — dates in range, amounts > 0, segments/statuses, email `.*@.*\..*` when present, `total_amount` within 1% of qty × price, payment vs status. Extra consistency (LTV, reorder, catalog price, `order_before_signup`) maps to `TYPE_VALIDATION_FAIL`, not a fifth token.
+  4. **Referential integrity** — non-null order FKs exist on parents. Null FKs are completeness only. Duplicate parent keys still count as “exists.” Uniqueness reuse of ids 1–10 removes ids 9941–9950 from customers, so orphan **customer** counts can exceed the planted 50.
 - FR-S3: Produce a **quality metrics report** (Delta table and/or queryable view) with at least: table name, check name, fail count, pass count, fail rate, and comparison to documented thresholds (completeness >99%, uniqueness 100% unique keys, referential >99.9% valid).
 - FR-S4: Planted defects must be visible in Silver flags and in the metrics report (not “fixed” in Silver).
 
 ### Gold — aggregations
 
-- FR-G1: Build three Delta tables sourced from Silver:
-  1. **Sales by product** — units and revenue by `product_id` / `product_name` / `category` (and cost/margin if price and cost are available).
-  2. **Revenue by customer** — order count and revenue by `customer_id` (and name/country/segment where the join succeeds).
-  3. **Customer segmentation** — counts, revenue, and average lifetime or computed revenue by `customer_segment` (and optionally country).
+- FR-G1: Gold Delta tables sourced from Silver PASS + Completed (except cancelled counts on trend tables, which use PASS Cancelled):
+  1. **Sales by product** — `total_orders`, `total_revenue`, `avg_order_value`, `total_quantity_sold`, `profit_margin` %.
+  2. **Revenue by customer** — `total_orders`, `total_revenue`, AOV, first/last order, tenure, `lifetime_value_actual`. No `country` column in the built table.
+  3. **Customer segmentation** — **value** segments High-Value / Repeat / One-Time / Inactive / Other (not CSV Premium/Standard/Basic; those remain on `revenue_by_customer.customer_segment`).
+  4. **Sales daily / weekly trends** — extra Gold tables for the dashboard time series.
 - FR-G2: Document and apply a consistent grain and filter: metrics use rows with `quality_check_result = 'PASS'` unless a report specifically includes failed rows. Do not delete Silver data to achieve this.
 - FR-G3: Define which `order_status` values count as revenue (default assumption: `Completed` only; Pending/Cancelled excluded from revenue, still countable if needed as operational metrics).
 
 ### Dashboard
 
-- FR-D1: Databricks SQL dashboard with **at least three** visualizations against Gold (for example: top products by revenue, revenue by segment, orders/revenue over time or by country).
+- FR-D1: Databricks SQL dashboard **E-commerce Medallion** with queries 1–9 (top products, revenue buckets, value-segment pie, quality table, KPIs, daily/weekly trends, category mix, top customers). Export: `src/dashboard/E-commerce Medallion.lvdash.json`.
 - FR-D2: Visuals must be driven by Gold tables, not by re-aggregating Bronze CSVs.
 
 ## Non-Functional Requirements
@@ -79,17 +82,17 @@ The engineering constraint is as important as the business one: Databricks Unity
 
 ## Assumptions
 
-1. **Platform:** Databricks Unity Catalog, `spark` / `dbutils` in notebooks, data on `/Volumes/ecommerce/medallion/data/{raw,bronze,silver,gold}/`.
+1. **Platform:** Databricks Unity Catalog, `spark` / `dbutils` in notebooks. Raw CSVs: `/Volumes/ecommerce/medallion/data/raw/`. Bronze/Silver/Gold are **managed** tables (`saveAsTable` / `CREATE OR REPLACE TABLE`), not Volume `LOCATION`s.
 2. **Daily batch, full refresh:** “Daily sales data” is modeled as a full overwrite of the three extracts, not incremental CDC.
 3. **Nullable `payment_date`:** Null is valid for `Pending` (and possibly `Cancelled`). It is a type/domain issue only if `Completed` has a null or unparseable `payment_date` (clarification below).
 4. **Flag ≠ drop:** Silver never removes rows. Gold filters to `PASS` for financial KPIs so dashboards are not inflated by duplicates/orphans.
-5. **~700 defects:** The brief lists 460 explicit defects (50+10+100+200+50+30+20). The remaining ~240 are assumed to be **type/domain** issues (malformed emails, invalid status/segment, negative quantity/price, unparseable dates, `Completed` without `payment_date`, etc.) so the generator can hit ~700 flagged *issue instances*. One row may fail multiple checks; “~700” is counted as issue instances, not distinct rows.
+5. **~700 defects:** Completeness / uniqueness / referential plants are in the generator **in place** (row counts stay 10,000 / 100,000 / 500). The extra ~240 type/domain plants were **not** added. Extra rule `order_before_signup` fails many orders because signup and order dates are independent. “~700” is not a measured Gold/Silver instance count.
 6. **Orphans vs nulls:** 50 orphan `customer_id`s and 30 orphan `product_id`s are non-null values absent from the parent table. They are in addition to the 100/200 null FKs.
-7. **Duplicates:** 10 extra customer rows and 20 extra order rows (same key, possibly different attributes). Uniqueness flags **all** rows that share a duplicated key.
+7. **Duplicates:** 10 customer rows and 20 order rows **reuse** keys (ids 1–10 and 1–20). Uniqueness uses `row_number()` ordered by `_ingestion_timestamp`: first row PASS, later rows `FAIL_DUPLICATE_{key}` (10 + 20 fail rows, not every member of the group). Reusing customer ids 1–10 on rows 9941–9950 **removes** those later parent ids, so orphan **customer** counts can exceed the planted 50.
 8. **Revenue:** Sum of `total_amount` for `Completed` + `PASS` orders, unless clarified otherwise. `lifetime_value` on customers may not equal computed revenue; Gold can expose both.
-9. **Products:** No planted completeness/uniqueness issues required beyond what type checks introduce; still run all four checks on products.
+9. **Products:** No planted completeness/uniqueness defects. Completeness is forced `PASS`. Uniqueness and type still run. Referential is `N/A`.
 10. **Generator seed:** A fixed random seed is used so re-runs of data generation are stable for the evaluation.
-11. **Catalog/schema:** `ecommerce.medallion`. Table names: `bronze_*` / `*_silver` and gold names `sales_by_product`, `revenue_by_customer`, `customer_segmentation`.
+11. **Catalog/schema:** `ecommerce.medallion`. Tables: `bronze_*`, `*_silver`, `quality_metrics`, `sales_by_product`, `revenue_by_customer`, `customer_segmentation`, `sales_daily_trends`, `sales_weekly_trends`.
 
 ## Edge Cases
 
@@ -98,8 +101,8 @@ The engineering constraint is as important as the business one: Databricks Unity
 | Row fails multiple checks | Set each per-check flag independently; keep one row; `quality_check_result` lists every fail token (e.g. `COMPLETENESS_FAIL\|REFERENTIAL_INTEGRITY_FAIL`). Count the row in each failed check’s metrics. |
 | Null `customer_id` on an order | Completeness FAIL; do **not** also count as an orphan. |
 | Orphan non-null FK | Completeness PASS (if other required fields present); referential FAIL. |
-| Duplicate `order_id` with different amounts | Both rows unique-check FAIL; if they otherwise PASS other checks they still must not both inflate Gold — Gold uses PASS-only, so both drop out of KPI unless we pick a survivor (see Clarifications). |
-| Duplicate `customer_id` | Same as orders: uniqueness FAIL on all copies; Gold customer grain must not double-count. |
+| Duplicate `order_id` with different amounts | First ingest-timestamp row uniqueness PASS; later rows `FAIL_DUPLICATE_order_id`. Gold is PASS + Completed, so only the first copy can enter KPIs if it otherwise PASSes. |
+| Duplicate `customer_id` | Same keep-first rule. Reused keys also change which parent ids exist for referential checks. |
 | `payment_date` null | Allowed for non-completed orders; does not fail completeness. |
 | `total_amount` ≠ `quantity * unit_price` | Type/domain FAIL (inconsistent numeric business rule). |
 | Invalid `customer_segment` or `order_status` | Type/domain FAIL. |
@@ -119,37 +122,37 @@ The engineering constraint is as important as the business one: Databricks Unity
 
 ### Bronze
 
-- [ ] Three managed Delta tables exist as `ecommerce.medallion.bronze_*`.
-- [ ] Column names match the CSV headers listed in the business context.
-- [ ] Row counts equal CSV records, including planted defects.
-- [ ] Re-run does not increase row counts (overwrite, not append).
-- [ ] No quality flags and no dropped/repaired values.
+- [x] Three managed Delta tables exist as `ecommerce.medallion.bronze_*`.
+- [x] Column names match the CSV headers listed in the business context.
+- [x] Row counts equal CSV records, including planted defects (10,000 / 100,000 / 500).
+- [x] Re-run does not increase row counts (overwrite, not append).
+- [x] No quality flags and no dropped/repaired values (typed persist only).
 
 ### Silver
 
-- [ ] Silver row counts equal Bronze for each entity.
-- [ ] Columns include per-check flags and `quality_check_result`.
-- [ ] Completeness detects 50 null emails, 100 null order `customer_id`s, 200 null `product_id`s (plus any other planted nulls).
-- [ ] Uniqueness detects 10 duplicate `customer_id`s and 20 duplicate `order_id`s (all members of each duplicate set flagged).
-- [ ] Referential checks detect 50 orphan customers and 30 orphan products on orders.
-- [ ] Type validation detects the additional planted domain issues used to reach ~700 issue instances.
-- [ ] Quality metrics report shows fail counts/rates per table and check; uniqueness is not 100%; completeness and referential rates miss the stated thresholds because of planted data.
-- [ ] No Silver `DELETE`/`filter` that removes bad rows from the stored table.
+- [x] Silver row counts equal Bronze for each entity.
+- [x] Columns include per-check flags and `quality_check_result`.
+- [x] Completeness detects 50 null emails, 100 null order `customer_id`s, 200 null `product_id`s.
+- [x] Uniqueness flags 10 later duplicate `customer_id`s and 20 later duplicate `order_id`s (keep-first).
+- [x] Referential checks detect planted product orphans (30) and customer orphans (planted 50 plus extra from reused ids).
+- [ ] Type validation does **not** see ~240 extra planted domain issues (generator never added them). Extra `order_before_signup` drives most type fails.
+- [x] Quality metrics report (`field_checked`, `pass_rate_pct`, thresholds) is written each run.
+- [x] No Silver `DELETE`/`filter` that removes bad rows from the stored table.
 
 ### Gold
 
-- [ ] Three Delta aggregation tables exist and are documented (grain, filters, `order_status` rule).
-- [ ] Aggregations are reproducible: same Silver input → same Gold totals on re-run.
-- [ ] KPI totals are not inflated by known duplicate keys or null/orphan FKs (PASS-only, or an explicit survivor rule if duplicates can still PASS other checks — they should not PASS uniqueness).
-- [ ] Customer segmentation uses `Premium` / `Standard` / `Basic` (failed-segment rows excluded from that chart’s PASS path).
+- [x] Five Delta aggregation tables exist (`sales_by_product`, `revenue_by_customer`, `customer_segmentation`, `sales_daily_trends`, `sales_weekly_trends`).
+- [x] Aggregations are reproducible: same Silver input → same Gold totals on re-run.
+- [x] KPI totals use PASS + Completed (trends also count PASS Cancelled for cancelled volume).
+- [x] `customer_segmentation` is value-based (`High-Value` / `Repeat` / `One-Time` / `Inactive` / `Other`). CSV Premium/Standard/Basic stays on `revenue_by_customer.customer_segment`.
 
 ### Dashboard
 
-- [ ] At least three visualizations bound to Gold.
-- [ ] A viewer can answer: top products, revenue by segment (or by customer), and at least one more view (time, country, or order volume).
+- [x] Databricks SQL dashboard **E-commerce Medallion** with queries 1–9 (more than three visuals).
+- [x] A viewer can answer: top products, revenue buckets, value segments, daily/weekly trends, category mix, top customers, and Silver quality rates.
 
 ### Cross-cutting
 
-- [ ] Functions have docstrings; Python is PEP 8; SQL is Spark ANSI-style.
-- [ ] Logs show counts and failures; a forced missing-path error is logged and raised.
-- [ ] Entire pipeline re-runnable using the canonical Unity Catalog Volume.
+- [x] Functions have docstrings; Python is PEP 8; SQL is Spark ANSI-style.
+- [x] Logs show counts and failures; missing-path errors are logged and raised.
+- [x] Entire pipeline re-runnable using Unity Catalog + the raw Volume.

@@ -53,16 +53,3 @@ Next: paste queries into SQL Editor and assemble the dashboard; capture screensh
 
 **YOUR EVALUATION:**
 Accepted Queries 1 - 9 for dashboard and discarded rest of the queries.
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_

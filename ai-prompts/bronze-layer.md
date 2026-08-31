@@ -113,9 +113,6 @@ Documentation summary
 - Added src/common/config.py with Volume paths and ecommerce.medallion.* tables.
 - Added ensure_unity_storage() for idempotent UC object creation.
 
-**YOUR EVALUATION:**
-_TODO_
-
 
 ## Prompt 3: Customer.csv ingestion script
 
@@ -206,7 +203,7 @@ Same metadata columns, same error handling, same logging pattern.
 Created src/bronze/02_ingest_orders.py on the same pattern as customers ingest.
 
 Header
-# Databricks notebook source
+Databricks notebook source
 
 Schema
 ORDERS_SCHEMA (no inferSchema)
@@ -239,10 +236,6 @@ Uses ORDERS_SCHEMA, Volume raw/bronze paths, metadata columns, overwrite, loggin
 
 Did not use FileStore; storage stays /Volumes/ecommerce/medallion/data/.
 
-**YOUR EVALUATION:**
-_TODO_
-
-
 ## Prompt 5: product.csv ingestion script
 
 **PROMPT SENT:**
@@ -255,7 +248,8 @@ Target: dbfs:/FileStore/medallion/bronze/products
 Created src/bronze/03_ingest_products.py on the same pattern as the customers and orders ingest jobs.
 
 Header
-# Databricks notebook source
+Databricks notebook source
+
 Schema
 PRODUCTS_SCHEMA
 
@@ -281,9 +275,6 @@ Documentation summary
 Added src/bronze/03_ingest_products.py using PRODUCTS_SCHEMA.
 Same ingest pattern: Volume paths, metadata, overwrite, logging, error handling.
 Registered table is ecommerce.medallion.bronze_products.
-
-**YOUR EVALUATION:**
-_TODO_
 
 
 ## Prompt 6: ingest_all.py creation
@@ -323,9 +314,6 @@ Added src/bronze/ingest_all.py with per-job timing, a summary table, and SUCCESS
 One job failing is logged; the other two still run.
 Guarded the three ingest entrypoints so the orchestrator can import them without auto-running.
 
-**YOUR EVALUATION:**
-_TODO_
-
 
 ## Iteration 1: Update in ingest_all.py
 
@@ -349,8 +337,6 @@ Databricks notebooks have no __file__; that was breaking BRONZE_DIR.
 ingest_all.py now resolves the bronze folder via notebook context, then cwd.
 Re-run the orchestrator notebook after this change.
 
-**YOUR EVALUATION:**
-_TODO_
 
 ## Iteration 2 : Refactor `src/bronze/ingest_all.py` for Databricks compatibility.
 

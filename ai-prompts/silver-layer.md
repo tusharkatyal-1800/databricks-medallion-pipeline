@@ -69,7 +69,7 @@ Files: src/silver/02_quality_uniqueness.py, src/silver/uniqueness.py.
 Expected fails: 10 customers, 20 orders; all Bronze rows retained; no Silver write.
 
 **YOUR EVALUATION:**
-
+uniqueness quality is perfectly checkedc by this script
 
 ---
 
@@ -112,9 +112,6 @@ Added Silver type validation for dates, numerics, regex/sets, and order payment/
 Files: src/silver/03_quality_type_validation.py, src/silver/type_validation.py.
 Products are checked here; zero stock can fail. Rows are flagged, not dropped; no Silver write.
 
-**YOUR EVALUATION:**
-_TODO_
-
 ---
 
 ## Prompt 4:  Generating Refrential integrity logic 
@@ -152,9 +149,6 @@ Documentation summary
 Added Silver referential integrity for order customer_id and product_id via LEFT ANTI JOIN.
 Files: src/silver/04_quality_referential_integrity.py, src/silver/referential.py.
 Expected: 50 + 30 orphans; null FKs PASS; all order rows retained.
-
-**YOUR EVALUATION:**
-_TODO_
 
 ---
 
@@ -224,7 +218,7 @@ Files: src/silver/05_quality_business_logic.py, src/silver/business_logic.py.
 Join rules skip null FKs and orphans; sample data is expected to show ~0 fails. No Silver tables written.
 
 **YOUR EVALUATION:**
-_TODO_
+the remaining buisness logics are good to be applied in our project for better results
 
 ---
 
@@ -364,7 +358,7 @@ Quality results use the four standard category tokens.
 Databricks runtime execution remains the final verification step.
 
 **YOUR EVALUATION:**
-_TODO_
+This script will run all the required checks and store the tables and data quality reports in databricks.
 
 ---
 
@@ -391,47 +385,3 @@ Documentation summary
 Extended README.md with Silver steps, tables, expected quality results, and troubleshooting.
 Main entry point documented as src/silver/create_silver_tables.py.
 Gold is still marked as not in this guide.
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----
-
-## Prompt 1:
-
-**PROMPT SENT:**
-_TODO_
-
-**AI RESPONSE SUMMARY:**
-_TODO_
-
-**YOUR EVALUATION:**
-_TODO_
-
----

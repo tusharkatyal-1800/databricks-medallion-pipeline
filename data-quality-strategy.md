@@ -1,10 +1,10 @@
 ﻿# Data Quality Strategy
 
-Silver applies **four independent checks** on every row. Failures are **flagged, never deleted**. Per-check columns stay `PASS` / `FAIL` (referential may be `N/A` on customers/products). `quality_check_result` is **`PASS`** when nothing failed, otherwise a **pipe-delimited list of fail tokens** (not a bitmask or JSON), for example `COMPLETENESS_FAIL|REFERENTIAL_INTEGRITY_FAIL`.
+Silver applies **four independent checks** on every row. Failures are **flagged, never deleted**. Per-check columns use `PASS` or detailed fail tokens (`FAIL_NULL_*`, `FAIL_DUPLICATE_*`, `FAIL_INVALID_*`, `FAIL_ORPHAN_*`). Referential may be `N/A` on customers/products. `quality_check_result` is **`PASS`** when nothing failed, otherwise a **pipe-delimited list of the four roll-up tokens** (not a bitmask or JSON), for example `COMPLETENESS_FAIL|REFERENTIAL_INTEGRITY_FAIL`. Extra business rules fold into `TYPE_VALIDATION_FAIL` — there is no fifth token.
 
-Checks run per table in one Spark plan. Uniqueness uses a window; referential uses `LEFT ANTI JOIN` on orders after parents exist.
+Checks run per table in one Spark plan. Uniqueness uses `row_number()` (keep-first). Referential uses an anti-join on orders after parents exist.
 
-Planted issue instances (this sample): **350 completeness + 30 uniqueness + 80 referential = 460**, plus type/domain plants to reach **~700** total instances. One row can fail more than one check (see below).
+**As built:** Completeness/uniqueness/referential plants are in-place (10K/100K/500 rows). Type/domain extras (~240) were **not** planted. `order_before_signup` is not planted but fails many orders. Customer orphans can exceed 50 because uniqueness reuse of ids 1–10 drops parent ids 9941–9950.
 
 ---
 
@@ -28,37 +28,37 @@ Planted issue instances (this sample): **350 completeness + 30 uniqueness + 80 r
 
 **How NULLs are found and marked**
 
-1. Read Bronze STRING columns.
-2. A field is missing if `col IS NULL` OR `trim(col) = ''`.
+1. Read Bronze (typed columns from `schemas.py`).
+2. A field is missing if `col IS NULL` (blank strings are not planted on these INT/email fields).
 3. Mark the row:
-   - `completeness_check = 'FAIL'` if **any** in-scope column is missing.
-   - `completeness_check = 'PASS'` otherwise.
-4. If FAIL, include token `COMPLETENESS_FAIL` when building `quality_check_result` (see below).
+   - `completeness_check = FAIL_NULL_{field}` (pipe-joined if several).
+   - `completeness_check = PASS` otherwise.
+   - Products: always `PASS`.
+4. If FAIL, include token `COMPLETENESS_FAIL` when building `quality_check_result`.
 5. **Do not** `filter`/`drop` the row.
 
 Spark SQL equivalent:
 
 ```sql
 CASE
-  WHEN email IS NULL OR trim(email) = '' THEN 'FAIL'   -- customers
+  WHEN email IS NULL THEN 'FAIL_NULL_email'
   ELSE 'PASS'
 END
 ```
 
 ```sql
-CASE
-  WHEN customer_id IS NULL OR trim(customer_id) = ''
-    OR product_id IS NULL OR trim(product_id) = ''
-  THEN 'FAIL'   -- orders
-  ELSE 'PASS'
-END
+concat_ws(
+  '|',
+  CASE WHEN customer_id IS NULL THEN 'FAIL_NULL_customer_id' END,
+  CASE WHEN product_id IS NULL THEN 'FAIL_NULL_product_id' END
+)
 ```
 
 **Threshold:** **>99% complete**  
 `completeness_rate = pass_count / rows_total`  
 `threshold_met` iff `completeness_rate > 0.99` (equivalently fail rate &lt; 1%).
 
-On this sample the bar is **expected to miss** (350 planted nulls on ~10K customers and ~100K orders). The job still succeeds; the metrics report records the miss.
+On this sample the bar is **expected to miss** on orders (~300 planted FK nulls on 100,000 rows is still >99% complete). Customers: 50/10,000 = 99.5% — **meets** a >99% bar. The job still succeeds; the metrics report records `threshold_met` per field.
 
 ---
 
@@ -74,28 +74,25 @@ On this sample the bar is **expected to miss** (350 planted nulls on ~10K custom
 | `orders` | `order_id` | 20 |
 | `products` | `product_id` | 0 (still checked) |
 
-**Total intentional uniqueness errors: 10 + 20 = 30 duplicate rows** (extra records sharing a key). Every row that participates in a duplicate set is flagged, so fail **row** count is **≥ 30** (each extra row implies at least two rows with that key). Metrics should report fail_count = all rows whose key count &gt; 1, and a separate `duplicate_key_groups` if useful.
+**Total intentional uniqueness extras: 10 + 20 = 30 rows that reuse an existing key.** **As built:** `row_number() OVER (PARTITION BY key ORDER BY _ingestion_timestamp)`. `row_num = 1` → `PASS`. `row_num > 1` → `FAIL_DUPLICATE_{key}`. Fail **row** count is **10 customers + 20 orders**, not every member of the group.
 
 **How duplicates are found**
 
-**Window function (chosen), not `groupBy` as the only step.**
-
-- `groupBy(key).count()` finds keys with count &gt; 1 but **drops row context**. Flagging in place would need a join back.
-- `COUNT(*) OVER (PARTITION BY key)` keeps every Bronze row and stamps the count on each.
+**Window `row_number` (chosen), not “flag the whole group.”**
 
 ```sql
-COUNT(*) OVER (PARTITION BY customer_id) AS key_cnt  -- customers
--- uniqueness_check = CASE WHEN customer_id is usable AND key_cnt > 1 THEN 'FAIL' ELSE 'PASS' END
--- uniqueness FAIL contributes token UNIQUENESS_FAIL
+ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY _ingestion_timestamp) AS row_num
+-- uniqueness_check = CASE WHEN customer_id IS NOT NULL AND row_num > 1
+--   THEN 'FAIL_DUPLICATE_customer_id' ELSE 'PASS' END
 ```
 
-Null keys: completeness already fails them. Uniqueness: null/blank keys are **not** treated as one duplicate group (they do not `PARTITION BY` together as a real id). They stay uniqueness `PASS` or `N/A`; completeness carries the fail. Documented rule: uniqueness applies only when the key is non-null.
+Null keys: completeness already fails them. Uniqueness: null keys are **PASS** so completeness owns missing keys.
 
-**Threshold:** **100% unique keys** on the stored Silver table (no silent dedupe).  
-`uniqueness_rate = rows_with_key_cnt_1 / rows_with_non_null_key`  
+**Threshold:** **100% unique keys** on later-row scoring.  
+`uniqueness_rate = 1 - (later_duplicate_rows / total_rows)`  
 `threshold_met` iff uniqueness_rate = 1.0.
 
-Silver **does not deduplicate**. “100% after deduplicating” is the **Gold** story: `WHERE quality_check_result = 'PASS'` so KPI grains are unique. The Silver metrics row for uniqueness is **expected to fail** the 100% threshold because of the 30 planted extras.
+Silver **does not deduplicate**. Gold uses `WHERE quality_check_result = 'PASS'`, so only the first ingest-timestamp copy can enter KPIs if it otherwise PASSes. The uniqueness metrics row is **expected to fail** the 100% threshold because of the 30 reused keys.
 
 ---
 
@@ -106,47 +103,39 @@ Silver **does not deduplicate**. “100% after deduplicating” is the **Gold** 
 **Email regex (Spark `rlike`)**
 
 ```text
-^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$
+.*@.*\..*
 ```
 
-- Local part: letters, digits, `. _ % + -`
-- Domain: labels and dots, TLD at least 2 letters
-- Rejects: missing `@`, spaces, `user@localhost` (no TLD), `user@.com`
-- Intentionally simpler than full RFC 5322 (readable in a notebook review)
-
-Null email → completeness FAIL, type not scored as email-invalid.
+Loose presence of `@` and a dot after it. Null email → completeness FAIL, type not scored as email-invalid.
 
 **Invalid date**
 
-Parse with `to_date(col, 'yyyy-MM-dd')` only (calendar date, **no timezone conversion**).
-
-A date is **invalid** if any of:
+Bronze already stores `DATE`. Type rules score **range / sequencing**, not CSV parse:
 
 | Case | Example |
 | --- | --- |
-| Unparseable / wrong format | `31-01-2024`, `2024/01/31`, `Jan 31 2024` |
-| Impossible calendar day | `2024-02-30`, `2024-13-01` (`to_date` → null) |
-| Trailing/embedded time or offset (this pipeline) | `2024-01-15T10:00:00Z`, `2024-01-15+05:30` |
-| Empty string | `''` (also completeness if the column is required) |
-
-`order_date` / `signup_date` must parse when present. `payment_date`: if present, must parse; if `order_status = 'Completed'`, it must be present **and** valid (type FAIL if completed and payment_date missing or invalid).
+| Signup/order before documented min or after `current_date()` | Out-of-range |
+| `payment_date` ≤ `order_date` | Sequence fail |
+| Completed with null `payment_date` | Type fail |
+| Pending with non-null `payment_date` | Type fail |
 
 **Numeric constraints**
 
 | Field | Rule |
 | --- | --- |
-| `quantity` | Integer **and** `quantity > 0` (negative or zero → FAIL) |
+| `quantity` | Integer **and** `quantity > 0` |
 | `unit_price` | Numeric **and** `unit_price > 0` |
 | `total_amount` | Numeric **and** `total_amount > 0` |
 | `price`, `cost` (products) | Numeric **and** `> 0` when present |
-| `lifetime_value` | Numeric **and** `>= 0` (zero LTV allowed for new customers) |
-| Line identity | `abs(total_amount - quantity * unit_price) <= 0.01` after successful parse (`~` allows 1 cent rounding) |
+| `lifetime_value` | Numeric **and** `>= 0` |
+| `stock_quantity` | Integer **and** `>= 0` |
+| Line identity | `abs(total_amount - quantity * unit_price) > abs(qty×price) * 0.01` (**1% relative**) |
 
-Non-numeric text (`"ten"`, `N/A`) → type FAIL.
+**Extra business rules** (`src/silver/business_logic.py`): catalog price vs `unit_price`, reorder vs stock, `order_before_signup`. Failures are `FAIL_INVALID_{name}` and roll up to **`TYPE_VALIDATION_FAIL` only**.
 
-**How it is marked:** `type_check = 'FAIL'` if any applicable rule fails; else `PASS`. If FAIL, include token `TYPE_VALIDATION_FAIL` in `quality_check_result`.
+**How it is marked:** `type_check` is `PASS` or pipe-joined `FAIL_INVALID_*`. If any fail, include token `TYPE_VALIDATION_FAIL` in `quality_check_result`.
 
-**Threshold:** no SLI in the brief; report fail_count. Remaining plants after 460 listed issues (~240) are type/domain (bad emails, invalid dates, negative/zero qty or price, broken qty × price).
+**Threshold:** informational. **Do not expect ~240 planted type fails** — the generator did not add them. Observed type fails are mostly `order_before_signup` plus genuine domain misses.
 
 ---
 
@@ -187,14 +176,16 @@ referential_check = FAIL if orphan_customer OR orphan_product else PASS
 
 Parent match uses `DISTINCT` parent keys so a **duplicate customer_id** still satisfies “exists” (uniqueness is a separate fail on the customer table).
 
-**Expected intentional errors: 50 orphan customer_ids + 30 orphan product_ids = 80.**  
+**Expected intentional errors: 50 orphan customer_ids + 30 orphan product_ids = 80 planted.**  
 These are in addition to the 100 + 200 null FKs.
 
+**As built:** product orphans stay **30**. Customer orphans were **157** in the successful run because reusing customer ids 1–10 on rows 9941–9950 removes those parent keys while orders still reference them.
+
 **Threshold:** **>99.9% valid** referential on applicable order rows  
-`referential_rate = pass_count / (pass_count + fail_count)`  
+`referential_rate = pass_count / applicable_non_null_fk_rows`  
 `threshold_met` iff rate > 0.999.
 
-Expected to **miss** on this sample (~80 orphans on ~100K orders is ~0.08% fail, which may still sit near 99.9%; 80/100000 = 0.08%, so 99.92% valid — **just under or around 99.9%** depending on denominator). Use applicable rows only (exclude null-FK rows from the referential denominator so 80 orphans are not diluted by 300 completeness nulls). Denominator ≈ 100K − 100 − 200 + overlap handling; **fail_count must equal 80** planted orphans (plus any type-planted bad FKs if introduced).
+Use applicable rows only (exclude null-FK rows from the referential denominator). Do not require `failed = 80` after the uniqueness id-reuse side effect.
 
 ---
 
@@ -226,10 +217,11 @@ CASE
   THEN 'PASS'
   ELSE concat_ws(
     '|',
-    CASE WHEN completeness_check = 'FAIL' THEN 'COMPLETENESS_FAIL' END,
-    CASE WHEN uniqueness_check = 'FAIL' THEN 'UNIQUENESS_FAIL' END,
-    CASE WHEN type_check = 'FAIL' THEN 'TYPE_VALIDATION_FAIL' END,
-    CASE WHEN referential_check = 'FAIL' THEN 'REFERENTIAL_INTEGRITY_FAIL' END
+    CASE WHEN completeness_check <> 'PASS' THEN 'COMPLETENESS_FAIL' END,
+    CASE WHEN uniqueness_check <> 'PASS' THEN 'UNIQUENESS_FAIL' END,
+    CASE WHEN type_check <> 'PASS' THEN 'TYPE_VALIDATION_FAIL' END,
+    CASE WHEN referential_check <> 'PASS' AND referential_check <> 'N/A'
+         THEN 'REFERENTIAL_INTEGRITY_FAIL' END
   )
 END AS quality_check_result
 ```
@@ -266,45 +258,49 @@ WHERE quality_check_result LIKE '%COMPLETENESS_FAIL%'
 - Each of `completeness_check`, `uniqueness_check`, `type_check`, `referential_check` is set on its own. A completeness fail does **not** skip uniqueness, type, or referential (except: null FKs are not scored as orphans).
 - `quality_check_result` lists **every** fail token, pipe-separated, so a row can be `COMPLETENESS_FAIL|REFERENTIAL_INTEGRITY_FAIL`.
 - **Metrics count the row in each failed check.** If one order has a null `customer_id` and a negative `quantity`, it increments completeness `failed` **and** type `failed`. `passed + failed` per check still equals `total_rows` (or applicable rows for referential).
-- `~700` issue instances can exceed distinct bad-row counts for this reason.
+- `~700` issue instances was a **design target**, not the measured Silver outcome. Type plants were not generated.
 - Gold treats any non-`PASS` roll-up as excluded from KPIs (one fail is enough).
 
 ---
 
 ## Quality Metrics Report
 
-Delta table `ecommerce.medallion.quality_metrics`. Grain: `(batch_timestamp, table_name, check_name)`. One row per check per Silver table per run.
+Delta table `ecommerce.medallion.quality_metrics`. Grain: `(batch_timestamp, table_name, check_name, field_checked)`. Several rows per check (one per field/rule).
 
-**Report structure (required columns):**
+**Report structure:**
 
 | Column | Type | Description |
 | --- | --- | --- |
-| `table_name` | `STRING` | `customers_silver`, `orders_silver`, `products_silver` |
-| `check_name` | `STRING` | `completeness`, `uniqueness`, `type_validation`, `referential_integrity` |
-| `total_rows` | `BIGINT` | Silver row count for that table (referential: applicable non-null FK rows only) |
-| `passed` | `BIGINT` | Rows with that check = `PASS` |
-| `failed` | `BIGINT` | Rows with that check = `FAIL` |
-| `pass_rate_%` | `DOUBLE` | `round(100.0 * passed / total_rows, 4)` when `total_rows > 0` |
+| `table_name` | `STRING` | `customers`, `orders`, `products` |
+| `check_name` | `STRING` | `completeness`, `uniqueness`, `type_validation`, `referential_integrity`, `overall` |
+| `field_checked` | `STRING` | Column or rule (`email`, `order_id`, `amount_formula`, `_all`, …) |
+| `total_rows` | `INT` | Silver row count |
+| `applicable_rows` | `INT` | Rows scored for that field |
+| `passed` | `INT` | Applicable rows that passed |
+| `failed` | `INT` | Applicable rows that failed |
+| `pass_rate_pct` | `DOUBLE` | `100.0 * passed / applicable_rows` |
+| `threshold` | `DOUBLE` | Documented bar |
+| `threshold_met` | `BOOLEAN` | Whether the bar was met |
+| `batch_timestamp` | `TIMESTAMP` | Run time |
 
-Also stored (not required on the printed report): `batch_timestamp`, `threshold`, `threshold_met`.
+Example shape after a run (orders; figures **illustrative**, not the warehouse snapshot):
 
-Example shape after a run (orders, figures illustrative):
-
-| check_name | total_rows | passed | failed | pass_rate_% |
-| --- | --- | --- | --- | --- |
-| completeness | 100020 | 99620 | 400 | 99.6001 |
-| uniqueness | 100020 | 99980 | 40 | 99.9600 |
-| type_validation | 100020 | 99780 | 240 | 99.7600 |
-| referential_integrity | 99720 | 99640 | 80 | 99.9198 |
-
-(`completeness` failed ≈ 100 + 200 minus overlap if both FKs null on one row; uniqueness `failed` is all rows in duplicate key groups, not only the 20 extras.)
+| check_name | field_checked | total_rows | failed |
+| --- | --- | --- | --- |
+| completeness | customer_id | 100000 | 100 |
+| completeness | product_id | 100000 | 200 |
+| uniqueness | order_id | 100000 | 20 |
+| referential_integrity | customer_id | 100000 | 157 (as-built, not 50) |
+| referential_integrity | product_id | 100000 | 30 |
+| type_validation | order_before_signup | 100000 | large (unplanted date clash) |
 
 | Check | Threshold | Expected on this sample |
 | --- | --- | --- |
-| Completeness | `pass_rate_%` > 99 | **Not met** (~350 nulls) |
-| Uniqueness | `pass_rate_%` = 100 | **Not met** (30 extra duplicate rows) |
-| Type validation | informational | `failed` ≈ remaining plants (~240) |
-| Referential | `pass_rate_%` > 99.9 | **Not met or borderline**; `failed` = **80** |
+| Completeness (customers email) | `pass_rate_pct` > 99 | **Met** (50/10000 = 99.5%) |
+| Completeness (order FKs) | `pass_rate_pct` > 99 | **Met** (~0.3% fail) |
+| Uniqueness | `pass_rate_pct` = 100 | **Not met** (10 + 20 later duplicates) |
+| Type validation | informational | Dominated by `order_before_signup`, not ~240 plants |
+| Referential | `pass_rate_pct` > 99.9 | Product 30 orphans; customer orphans inflated by id reuse |
 
 `threshold_met = false` is a **successful demonstration** of the checks, not a pipeline crash. Gold still uses `quality_check_result = 'PASS'`.
 
@@ -317,12 +313,13 @@ Example shape after a run (orders, figures illustrative):
 | 1 | NULL `email` | customers | Completeness | 50 |
 | 2 | NULL `customer_id` | orders | Completeness | 100 |
 | 3 | NULL `product_id` | orders | Completeness | 200 |
-| 4 | Duplicate `customer_id` | customers | Uniqueness | 10 extra rows |
-| 5 | Duplicate `order_id` | orders | Uniqueness | 20 extra rows |
-| 6 | `customer_id` not in customers | orders | Referential (`LEFT ANTI JOIN`) | 50 |
-| 7 | `product_id` not in products | orders | Referential (`LEFT ANTI JOIN`) | 30 |
-| 8 | Bad email / invalid date / qty ≤ 0 / price ≤ 0 / amount ≠ qty × price | customers, orders, products | Type | ~240 |
+| 4 | Duplicate `customer_id` | customers | Uniqueness | 10 reused keys (later rows FAIL) |
+| 5 | Duplicate `order_id` | orders | Uniqueness | 20 reused keys (later rows FAIL) |
+| 6 | `customer_id` not in customers | orders | Referential | 50 planted; **as-built ~157** after id reuse |
+| 7 | `product_id` not in products | orders | Referential | 30 |
+| 8 | Extra type/domain plants | customers, orders, products | Type | **Not planted (~240 skipped)** |
+| 9 | `order_before_signup` | orders | Type (business) | Unplanted; high fail rate from independent dates |
 
 **Null vs orphan:** a null `orders.customer_id` is completeness only. An orphan is a **non-null** id that fails the anti-join.
 
-**Duplicates vs Gold:** all rows with `key_cnt > 1` have `UNIQUENESS_FAIL` in `quality_check_result` (not `PASS`); they never enter Gold aggregations.
+**Duplicates vs Gold:** later `row_number` rows have `UNIQUENESS_FAIL`; they never enter Gold. The first copy can PASS uniqueness and may enter Gold if other checks pass.

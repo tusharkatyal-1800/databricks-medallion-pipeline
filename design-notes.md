@@ -1,5 +1,7 @@
 ﻿# Design Notes
 
+**Implementation snapshot (2026-08-31):** Matches the running Databricks job. Bronze is **typed** (`src/bronze/schemas.py`), not all-STRING. Metadata columns are `_ingestion_timestamp`, `_source_file`, `_batch_id`. Uniqueness is keep-first. Gold includes daily/weekly trend tables. Dashboard is queries 1–9 on Gold + `quality_metrics`.
+
 ## Architecture Overview
 
 ```
@@ -18,9 +20,11 @@ Delta  ecommerce.medallion.*_silver  +  ecommerce.medallion.quality_metrics
 Delta  ecommerce.medallion.sales_by_product
        ecommerce.medallion.revenue_by_customer
        ecommerce.medallion.customer_segmentation
+       ecommerce.medallion.sales_daily_trends
+       ecommerce.medallion.sales_weekly_trends
         │
         ▼
-Databricks SQL Dashboard (3+ visuals on Gold only)
+Databricks SQL Dashboard (queries 1–9 on Gold + quality_metrics)
 ```
 
 **Platform:** Databricks Unity Catalog. Catalog `ecommerce`, schema `medallion`, Volume `data`. Paths under `/Volumes/ecommerce/medallion/data/`.
@@ -30,7 +34,7 @@ Databricks SQL Dashboard (3+ visuals on Gold only)
 | Layer | Owns | Must not do |
 | --- | --- | --- |
 | **Raw (Volume)** | Immutable CSV extracts | Parsing, KPI logic |
-| **Bronze** | Faithful land: 1:1 with file rows, STRING columns, ingest lineage | Dedupe, type repair, FK repair, quality flags |
+| **Bronze** | Faithful land: 1:1 with file rows, explicit typed schema, ingest lineage | Dedupe, FK repair, quality flags, business cleansing |
 | **Silver** | Audit: same grain as Bronze, four checks, `quality_check_result`, metrics | Delete/quarantine rows, compute dashboard KPIs |
 | **Gold** | Business grain: product / customer / segment metrics from **clean** orders | Re-ingest CSVs, hide Silver failures |
 | **Dashboard** | Presentation: charts over Gold | New transformations or Bronze scans |
@@ -59,17 +63,17 @@ Volume.
 | Bronze Delta | Managed table | `ecommerce.medallion.bronze_customers`, `bronze_orders`, `bronze_products` |
 | Silver Delta | Managed table | `ecommerce.medallion.customers_silver`, `orders_silver`, `products_silver` |
 | Metrics | Managed table | `ecommerce.medallion.quality_metrics` |
-| Gold Delta | Managed table | `ecommerce.medallion.sales_by_product`, `revenue_by_customer`, `customer_segmentation` |
+| Gold Delta | Managed table | `sales_by_product`, `revenue_by_customer`, `customer_segmentation`, `sales_daily_trends`, `sales_weekly_trends` |
 
 ### Schema inference vs schema definition
 
-**Choice: explicit schema, all source columns as `STRING`. Do not use `inferSchema=True`.**
+**Choice: explicit typed schema from `src/bronze/schemas.py`. Do not use `inferSchema=True`.**
 
 Reasons:
 
-1. Planted defects (bad dates, negative numbers as text, malformed emails) must survive Bronze. Inference often turns garbage into `null` and **erases the evidence** Silver is supposed to flag.
-2. Inference is order-dependent and can change types between runs (idempotency / review risk).
-3. Bronze is “no transformation”: landing as strings is the honest representation of the CSV. Casts belong in Silver **type validation**, not in the reader.
+1. Production-like contract (INT / DATE / DECIMAL(10,2) / STRING). Unparsable CSV values become null; Silver type checks score remaining domain rules.
+2. Inference is order-dependent and can change types between runs.
+3. Bronze still does **no business cleansing** (no drop, no dedupe, no FK repair). Typing is persist-only.
 
 Empty or missing files fail the job (logged, raised) before any Gold overwrite.
 
@@ -79,8 +83,9 @@ Append only; never overwrite source fields:
 
 | Column | Type | Value |
 | --- | --- | --- |
-| `ingestion_timestamp` | `TIMESTAMP` | `current_timestamp()` at write (timezone-naive; cluster TZ documented as session default, dates in the payload stay calendar dates) |
-| `source_file_name` | `STRING` | e.g. `customers.csv` or the Volume path |
+| `_ingestion_timestamp` | `TIMESTAMP` | `current_timestamp()` at write |
+| `_source_file` | `STRING` | Source file name (e.g. `customers.csv`) |
+| `_batch_id` | `STRING` | Run/batch identifier |
 
 ### Delta table properties
 
@@ -111,10 +116,10 @@ quality_metrics  ← aggregate flags (small table)
 
 | Check | How it runs | Dependency |
 | --- | --- | --- |
-| Completeness | Per-row `IS NOT NULL` / non-blank on required STRING fields | None |
-| Type / domain | Per-row try-cast + allowed-value + `quantity > 0` + `total_amount = quantity * unit_price` when both parse | None |
-| Uniqueness | Window `COUNT(*) OVER (PARTITION BY key)`; **all** rows with count > 1 fail | Full table |
-| Referential | Left anti / `IS IN` against parent `customer_id` / `product_id`. Null FK → completeness only, **not** orphan | Parents landed |
+| Completeness | Customers: `email`. Orders: `customer_id`, `product_id`. Products: always `PASS`. Per-field tokens `FAIL_NULL_{field}` | None |
+| Type / domain | Dates in range, allowed segments/statuses, email `.*@.*\..*`, qty/price > 0, `total_amount` within **1% relative** of qty × price, extra business rules (`order_before_signup`, catalog price, LTV, reorder). Fail tokens `FAIL_INVALID_{name}`; roll-up token `TYPE_VALIDATION_FAIL` | Optional parent join helpers |
+| Uniqueness | `row_number()` `PARTITION BY key ORDER BY _ingestion_timestamp`; **first row PASS**, later `FAIL_DUPLICATE_{key}` | Full table |
+| Referential | Left anti / `IS IN` against parent keys. Null FK → completeness only. Tokens `FAIL_ORPHAN_{field}` | Parents landed |
 
 Spark executes these in one DAG per table (parallel stages). **Do not** split PASS and FAIL into separate writes that could drop rows.
 
@@ -143,17 +148,21 @@ Rationale: FR-S1 (100% of Bronze rows), evaluators can `SELECT * WHERE quality_c
 
 ### Quality metrics report format
 
-Delta table `ecommerce.medallion.quality_metrics`, grain `(batch_timestamp, table_name, check_name)`.
+Delta table `ecommerce.medallion.quality_metrics`. Grain is **per table, check, and `field_checked`** (not one row per check). Built in `src/silver/create_silver_tables.py`.
 
 | Column | Meaning |
 | --- | --- |
-| `check_name` | `completeness` / `uniqueness` / `type_validation` / `referential_integrity` |
-| `total_rows` | Rows scored |
-| `passed` | Check = `PASS` |
-| `failed` | Check = `FAIL` |
-| `pass_rate_%` | `100.0 * passed / total_rows` |
+| `table_name` | `customers` / `orders` / `products` |
+| `check_name` | `completeness` / `uniqueness` / `type_validation` / `referential_integrity` / `overall` |
+| `field_checked` | Column or rule name (`email`, `order_id`, `amount_formula`, `_all`, …) |
+| `total_rows` | Table row count |
+| `applicable_rows` | Rows scored for that field |
+| `passed` / `failed` | Counts on applicable rows |
+| `pass_rate_pct` | `100.0 * passed / applicable_rows` |
+| `threshold` / `threshold_met` | Documented bar vs observed rate |
+| `batch_timestamp` | Run time |
 
-Also: `table_name`, `batch_timestamp`, `threshold`, `threshold_met`. Multi-fail rows increment `failed` on **each** failed check. Details: `data-quality-strategy.md`.
+Multi-fail rows increment `failed` on **each** failed field/check. Details: `data-quality-strategy.md`.
 
 ---
 
@@ -163,8 +172,9 @@ Also: `table_name`, `batch_timestamp`, `threshold`, `threshold_met`. Multi-fail 
 
 **Clean rows only for KPIs:**
 
-- Orders: `quality_check_result = 'PASS'` **and** `order_status = 'Completed'`.
-- Joins: customer/product attributes from Silver rows that **PASS** (if a customer fails uniqueness, they never PASS, so they will not appear as a Gold customer dimension — duplicate keys cannot inflate revenue).
+- Product/customer Gold: `quality_check_result = 'PASS'` **and** `order_status = 'Completed'`.
+- Trend Gold: all PASS orders; Completed for revenue/AOV/items; Cancelled counted separately.
+- Joins use PASS customers/products. Keep-first uniqueness means the first copy of a reused key can still PASS uniqueness.
 - Failed rows remain in Silver only.
 
 This is a filter, not a Silver delete.
@@ -173,59 +183,35 @@ This is a filter, not a Silver delete.
 
 **Overwrite** (`mode("overwrite")` / `CREATE OR REPLACE TABLE`), not MERGE.
 
-Daily extracts are full snapshots. MERGE is for incremental keys and would add complexity without benefit on CE. Overwrite is the idempotent story for “same file ingested twice.”
+Daily extracts are full snapshots. MERGE is unnecessary. Overwrite is the idempotent story for “same file ingested twice.”
 
 ### Aggregation schemas (summary)
 
-Full nullability and comments: [`data-model.md`](data-model.md).
+Full nullability and comments: [`data-model.md`](data-model.md). SQL: `src/gold/01`–`04`.
 
-1. **`sales_by_product`** — grain `product_id`. `units_sold`, `order_count`, `gross_revenue`, `total_cogs` (`quantity * cost`), `gross_margin`, `avg_unit_price`.
-2. **`revenue_by_customer`** — grain `customer_id`. `completed_order_count`, `gross_revenue`, `avg_order_value`, `lifetime_value` (CSV), `country`, `customer_segment`.
-3. **`customer_segmentation`** — grain `customer_segment`. `customer_count`, `total_revenue`, `avg_lifetime_value`, `avg_order_revenue`, `pct_of_revenue`.
+1. **`sales_by_product`** — grain `product_id` (INT). `total_orders`, `total_revenue`, `avg_order_value`, `total_quantity_sold`, `profit_margin` (%).
+2. **`revenue_by_customer`** — grain `customer_id`. `total_orders`, `total_revenue`, `avg_order_value`, first/last order, `customer_tenure_days`, `lifetime_value_actual`. No `country`.
+3. **`customer_segmentation`** — grain `segment_type` (value buckets, not CSV Premium/Standard/Basic).
+4. **`sales_daily_trends` / `sales_weekly_trends`** — PASS orders; Completed for revenue/AOV/items; Cancelled counts separate.
 
 ---
 
 ## Dashboard Design
 
-Visuals query **Gold only**. At least three charts.
+Canonical SQL: `src/dashboard/dashboard_queries.sql`. Lakeview export: `src/dashboard/E-commerce Medallion.lvdash.json`. Bind datasets in **Databricks SQL** (warehouse), not the all-purpose cluster.
 
-| Visualization | Gold table | Intent |
+| Query | Source | Intent |
 | --- | --- | --- |
-| 1. Top products by revenue (bar) | `sales_by_product` | Rank / mix |
-| 2. Revenue by customer segment (pie or bar) | `customer_segmentation` | Segment mix |
-| 3. Revenue by country (bar) **or** top customers (table/bar) | `revenue_by_customer` | Geo or concentration |
-| 4. (Optional extra) Margin by category | `sales_by_product` | `SUM(gross_margin) GROUP BY category` |
+| 1 Top 10 products | `sales_by_product` | Revenue rank |
+| 2 Revenue buckets | `revenue_by_customer` | Distribution |
+| 3 Value segments | `customer_segmentation` | High-Value / Repeat / One-Time / Inactive / Other |
+| 4 Quality table | `quality_metrics` | Per-field pass rates |
+| 5 KPI tiles | Gold + Silver | Headline metrics |
+| 6–7 Daily / weekly trends | `sales_daily_trends` / `sales_weekly_trends` | Time series |
+| 8 Category mix | `sales_by_product` | Category revenue |
+| 9 Top customers | `revenue_by_customer` | Concentration |
 
-### SQL queries (ANSI Spark SQL)
-
-```sql
--- Viz 1: top products
-SELECT product_name, category, units_sold, gross_revenue, gross_margin
-FROM ecommerce.medallion.sales_by_product
-ORDER BY gross_revenue DESC
-LIMIT 15;
-
--- Viz 2: segment mix
-SELECT customer_segment, customer_count, total_revenue, pct_of_revenue
-FROM ecommerce.medallion.customer_segmentation
-ORDER BY total_revenue DESC;
-
--- Viz 3: country (from customer grain)
-SELECT country,
-       COUNT(*) AS customer_count,
-       SUM(gross_revenue) AS gross_revenue
-FROM ecommerce.medallion.revenue_by_customer
-GROUP BY country
-ORDER BY gross_revenue DESC;
-
--- Optional: top customers
-SELECT customer_id, customer_name, customer_segment, gross_revenue, lifetime_value
-FROM ecommerce.medallion.revenue_by_customer
-ORDER BY gross_revenue DESC
-LIMIT 20;
-```
-
-If a SQL warehouse is unavailable, the same queries run in a notebook (`display`) against Unity Catalog tables — same three questions.
+There is **no country chart** (Gold customer grain has no `country`). Screenshots: `src/dashboard/screenshots/`.
 
 ---
 
@@ -239,6 +225,6 @@ Silver implements the four checks and the metrics table as specified above. Thre
 
 - Log row counts at Bronze read, Bronze write, Silver write, and Gold write; they must match Bronze→Silver 1:1.
 - `WHERE quality_check_result LIKE '%COMPLETENESS_FAIL%'` (and `UNIQUENESS_FAIL` / `TYPE_VALIDATION_FAIL` / `REFERENTIAL_INTEGRITY_FAIL`) to inspect planted issues.
-- Compare `quality_metrics.fail_count` to the planted list (50 null emails, 10 duplicate customers, 100/200 null FKs, 50/30 orphans, 20 duplicate orders, plus type plants).
+- Compare `quality_metrics.failed` to planted lists (50 null emails, 10 later duplicate customers, 100/200 null FKs, ~30 product orphans, extra customer orphans from reused ids, 20 later duplicate orders). Do not expect ~240 planted type fails.
 - Re-run the same notebook: counts must not grow (overwrite).
 - Do not `collect()` orders to the driver; use `count()` and `display` of samples only.
