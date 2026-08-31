@@ -192,37 +192,136 @@ Recorded the same header as a Cursor rule for future Databricks job .py files.
 Left library modules and local data-generation scripts without the notebook header.
 
 
-## Prompt 4:
+## Prompt 4: Order.csv ingestion script
 
 **PROMPT SENT:**
-_TODO_
+Now create `src/bronze/02_ingest_orders.py` following the exact same pattern as 
+01_ingest_customers.py but for the orders.csv file.
+Use the ORDERS_SCHEMA from schemas.py.
+Source: dbfs:/FileStore/medallion/raw/orders.csv
+Target: dbfs:/FileStore/medallion/bronze/orders
+Same metadata columns, same error handling, same logging pattern.
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+Created src/bronze/02_ingest_orders.py on the same pattern as customers ingest.
+
+Header
+# Databricks notebook source
+
+Schema
+ORDERS_SCHEMA (no inferSchema)
+
+Source
+/Volumes/ecommerce/medallion/data/raw/orders.csv
+
+Target
+/Volumes/ecommerce/medallion/data/bronze/orders
+
+Table
+ecommerce.medallion.bronze_orders
+
+Metadata
+_ingestion_timestamp, _source_file (orders.csv), _batch_id
+
+Write
+Delta overwrite + overwriteSchema
+
+Ops
+dbutils.fs check, logging, try/except on read/write/register
+
+The prompt still used FileStore paths. This file uses the Volume paths from config.py, same as customers, so the repo stays on Unity Catalog.
+
+Documentation summary
+
+Added src/bronze/02_ingest_orders.py mirroring customers ingest.
+
+Uses ORDERS_SCHEMA, Volume raw/bronze paths, metadata columns, overwrite, logging, and error handling.
+
+Did not use FileStore; storage stays /Volumes/ecommerce/medallion/data/.
 
 **YOUR EVALUATION:**
 _TODO_
 
 
-## Prompt 1:
+## Prompt 5: product.csv ingestion script
 
 **PROMPT SENT:**
-_TODO_
+Create `src/bronze/03_ingest_products.py` — same pattern for products.csv.
+Use PRODUCTS_SCHEMA from schemas.py.
+Source: dbfs:/FileStore/medallion/raw/products.csv
+Target: dbfs:/FileStore/medallion/bronze/products
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+Created src/bronze/03_ingest_products.py on the same pattern as the customers and orders ingest jobs.
+
+Header
+# Databricks notebook source
+Schema
+PRODUCTS_SCHEMA
+
+Source
+/Volumes/ecommerce/medallion/data/raw/products.csv
+
+Target
+/Volumes/ecommerce/medallion/data/bronze/products
+
+Table
+ecommerce.medallion.bronze_products
+
+Metadata
+_ingestion_timestamp, _source_file, _batch_id
+
+Write
+Delta overwrite, logging, try/except
+
+FileStore paths in the prompt were mapped to the project Volume convention.
+
+Documentation summary
+
+Added src/bronze/03_ingest_products.py using PRODUCTS_SCHEMA.
+Same ingest pattern: Volume paths, metadata, overwrite, logging, error handling.
+Registered table is ecommerce.medallion.bronze_products.
 
 **YOUR EVALUATION:**
 _TODO_
 
 
-## Prompt 1:
+## Prompt 6: ingest_all.py
 
 **PROMPT SENT:**
-_TODO_
+Create `src/bronze/ingest_all.py` — an orchestrator script that runs all 3 ingestion 
+scripts in sequence.
+Requirements:
+- Import and call the ingestion logic from each script
+- Add overall timing (start time, end time, duration)
+- Print a summary table at the end:
+  | Table      | Rows Ingested | Duration (s) | Status  |
+  |------------|---------------|---------------|---------|
+  | customers  | 10,000        | 2.3           | SUCCESS |
+  | orders     | 100,000       | 8.1           | SUCCESS |
+  | products   | 500           | 1.2           | SUCCESS |
+- If any ingestion fails, log the error but continue with the others
+- Return an overall status (SUCCESS if all succeeded, PARTIAL if some failed, FAILED if all failed)
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+Created src/bronze/ingest_all.py to run customers → orders → products in sequence.
+
+Behavior
+
+Loads each ingest script by file path (names like 01_ingest_*.py are not valid Python modules)
+Times the full run and each table
+On failure: logs the error and continues
+Prints a summary table (rows, duration, SUCCESS/FAILED)
+Returns SUCCESS / PARTIAL / FAILED
+The three ingest files now use if __name__ == "__main__" so importing them from the orchestrator does not start ingest immediately. Running each notebook by itself still works.
+
+Run ingest_all.py as a Databricks notebook after the CSVs are on the Volume.
+
+Documentation summary
+
+Added src/bronze/ingest_all.py with per-job timing, a summary table, and SUCCESS/PARTIAL/FAILED.
+One job failing is logged; the other two still run.
+Guarded the three ingest entrypoints so the orchestrator can import them without auto-running.
 
 **YOUR EVALUATION:**
 _TODO_

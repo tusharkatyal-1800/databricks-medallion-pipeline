@@ -1,13 +1,13 @@
 # Databricks notebook source
-"""Bronze ingest: customers.csv -> Delta on a Unity Catalog Volume.
+"""Bronze ingest: products.csv -> Delta on a Unity Catalog Volume.
 
 Run this file as a Databricks notebook (or paste into a notebook cell).
 Uses the notebook ``spark`` session and ``dbutils``; do not build a local
 SparkSession.
 
-Source: ``/Volumes/ecommerce/medallion/data/raw/customers.csv``
-Target: ``/Volumes/ecommerce/medallion/data/bronze/customers``
-Table: ``ecommerce.medallion.bronze_customers``
+Source: ``/Volumes/ecommerce/medallion/data/raw/products.csv``
+Target: ``/Volumes/ecommerce/medallion/data/bronze/products``
+Table: ``ecommerce.medallion.bronze_products``
 """
 
 from __future__ import annotations
@@ -21,27 +21,27 @@ from pyspark.sql.types import StructType
 
 try:
     from src.common.config import (
-        BRONZE_CUSTOMERS_PATH,
-        BRONZE_CUSTOMERS_TABLE,
         BRONZE_DIR,
-        CUSTOMERS_CSV_PATH,
+        BRONZE_PRODUCTS_PATH,
+        BRONZE_PRODUCTS_TABLE,
+        PRODUCTS_CSV_PATH,
         ensure_unity_storage,
     )
 except ImportError:
     from common.config import (  # type: ignore
-        BRONZE_CUSTOMERS_PATH,
-        BRONZE_CUSTOMERS_TABLE,
         BRONZE_DIR,
-        CUSTOMERS_CSV_PATH,
+        BRONZE_PRODUCTS_PATH,
+        BRONZE_PRODUCTS_TABLE,
+        PRODUCTS_CSV_PATH,
         ensure_unity_storage,
     )
 
-SOURCE_PATH = CUSTOMERS_CSV_PATH
-BRONZE_PATH = BRONZE_CUSTOMERS_PATH
-BRONZE_TABLE = BRONZE_CUSTOMERS_TABLE
-SOURCE_FILE_NAME = "customers.csv"
+SOURCE_PATH = PRODUCTS_CSV_PATH
+BRONZE_PATH = BRONZE_PRODUCTS_PATH
+BRONZE_TABLE = BRONZE_PRODUCTS_TABLE
+SOURCE_FILE_NAME = "products.csv"
 
-LOGGER = logging.getLogger("bronze.ingest_customers")
+LOGGER = logging.getLogger("bronze.ingest_products")
 
 if not logging.getLogger().handlers:
     logging.basicConfig(
@@ -50,26 +50,26 @@ if not logging.getLogger().handlers:
     )
 
 
-def _load_customers_schema() -> StructType:
-    """Import the explicit customers StructType (never inferSchema).
+def _load_products_schema() -> StructType:
+    """Import the explicit products StructType (never inferSchema).
 
     Returns:
-        ``CUSTOMERS_SCHEMA`` from ``schemas.py``.
+        ``PRODUCTS_SCHEMA`` from ``schemas.py``.
 
     Raises:
         ImportError: If the schema module is not on the Python path.
     """
     try:
-        from src.bronze.schemas import CUSTOMERS_SCHEMA
+        from src.bronze.schemas import PRODUCTS_SCHEMA
     except ImportError:
         try:
-            from schemas import CUSTOMERS_SCHEMA
+            from schemas import PRODUCTS_SCHEMA
         except ImportError as exc:
             raise ImportError(
-                "Could not import CUSTOMERS_SCHEMA. Add the repo to "
+                "Could not import PRODUCTS_SCHEMA. Add the repo to "
                 "sys.path or run %run ./schemas in a prior notebook cell."
             ) from exc
-    return CUSTOMERS_SCHEMA
+    return PRODUCTS_SCHEMA
 
 
 def source_csv_exists(path: str) -> bool:
@@ -98,12 +98,12 @@ def source_csv_exists(path: str) -> bool:
     return True
 
 
-def read_customers_csv(source_path: str, schema: StructType) -> DataFrame:
-    """Read customers CSV with the explicit Bronze schema.
+def read_products_csv(source_path: str, schema: StructType) -> DataFrame:
+    """Read products CSV with the explicit Bronze schema.
 
     Args:
-        source_path: Volume path to ``customers.csv``.
-        schema: Explicit ``CUSTOMERS_SCHEMA`` (no inference).
+        source_path: Volume path to ``products.csv``.
+        schema: Explicit ``PRODUCTS_SCHEMA`` (no inference).
 
     Returns:
         Spark DataFrame of source columns only.
@@ -120,11 +120,11 @@ def read_customers_csv(source_path: str, schema: StructType) -> DataFrame:
             .schema(schema)
             .load(source_path)
         )
-        LOGGER.info("Read customers CSV from %s", source_path)
+        LOGGER.info("Read products CSV from %s", source_path)
         LOGGER.info("Source schema:\n%s", df.schema.simpleString())
         return df
     except Exception:
-        LOGGER.exception("Failed to read customers CSV from %s", source_path)
+        LOGGER.exception("Failed to read products CSV from %s", source_path)
         raise
 
 
@@ -132,7 +132,7 @@ def add_ingest_metadata(df: DataFrame, batch_id: str) -> DataFrame:
     """Append lineage columns without rewriting source fields.
 
     Args:
-        df: Raw customers DataFrame.
+        df: Raw products DataFrame.
         batch_id: UUID for this overwrite run.
 
     Returns:
@@ -146,11 +146,11 @@ def add_ingest_metadata(df: DataFrame, batch_id: str) -> DataFrame:
     )
 
 
-def write_customers_bronze(df: DataFrame, bronze_path: str) -> None:
-    """Overwrite the customers Bronze Delta location on the Volume.
+def write_products_bronze(df: DataFrame, bronze_path: str) -> None:
+    """Overwrite the products Bronze Delta location on the Volume.
 
     Args:
-        df: Customers DataFrame including metadata columns.
+        df: Products DataFrame including metadata columns.
         bronze_path: Delta directory under ``/Volumes/.../bronze``.
 
     Raises:
@@ -170,7 +170,7 @@ def write_customers_bronze(df: DataFrame, bronze_path: str) -> None:
         raise
 
 
-def register_bronze_customers_table(bronze_path: str, table_name: str) -> None:
+def register_bronze_products_table(bronze_path: str, table_name: str) -> None:
     """Register a Unity Catalog table over the Bronze Delta Volume path.
 
     Args:
@@ -192,8 +192,8 @@ def register_bronze_customers_table(bronze_path: str, table_name: str) -> None:
         raise
 
 
-def ingest_customers() -> DataFrame:
-    """Run the full customers Bronze ingest (idempotent overwrite).
+def ingest_products() -> DataFrame:
+    """Run the full products Bronze ingest (idempotent overwrite).
 
     Returns:
         The DataFrame that was written to Delta.
@@ -203,12 +203,12 @@ def ingest_customers() -> DataFrame:
         Exception: On read, write, or table-registration failure.
     """
     ensure_unity_storage(spark)
-    schema = _load_customers_schema()
+    schema = _load_products_schema()
     source_csv_exists(SOURCE_PATH)
     batch_id = str(uuid.uuid4())
-    LOGGER.info("Starting customers Bronze ingest batch_id=%s", batch_id)
+    LOGGER.info("Starting products Bronze ingest batch_id=%s", batch_id)
 
-    source_df = read_customers_csv(SOURCE_PATH, schema)
+    source_df = read_products_csv(SOURCE_PATH, schema)
     source_count = source_df.count()
     LOGGER.info("Row count after read: %s", source_count)
     if source_count == 0:
@@ -217,8 +217,8 @@ def ingest_customers() -> DataFrame:
     bronze_df = add_ingest_metadata(source_df, batch_id)
     LOGGER.info("Bronze schema:\n%s", bronze_df.schema.simpleString())
 
-    write_customers_bronze(bronze_df, BRONZE_PATH)
-    register_bronze_customers_table(BRONZE_PATH, BRONZE_TABLE)
+    write_products_bronze(bronze_df, BRONZE_PATH)
+    register_bronze_products_table(BRONZE_PATH, BRONZE_TABLE)
 
     written = spark.read.format("delta").load(BRONZE_PATH)
     written_count = written.count()
@@ -227,11 +227,11 @@ def ingest_customers() -> DataFrame:
         raise ValueError(
             f"Bronze row count {written_count} != source count {source_count}"
         )
-    LOGGER.info("Customers Bronze ingest complete (table %s)", BRONZE_TABLE)
+    LOGGER.info("Products Bronze ingest complete (table %s)", BRONZE_TABLE)
     return bronze_df
 
 
 # Databricks notebook / local driver entrypoint.
 # Guarded so ingest_all.py can import without immediately running ingest.
 if __name__ == "__main__":
-    ingest_customers()
+    ingest_products()
