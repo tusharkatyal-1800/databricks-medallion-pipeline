@@ -103,47 +103,40 @@ def _databricks_notebook_folder() -> Path | None:
 def resolve_bronze_dir() -> Path:
     """Locate ``src/bronze`` on a laptop or in a Databricks notebook.
 
-    Args:
-        None.
-
     Returns:
         Absolute path to the folder that contains the ingest scripts.
 
     Raises:
         FileNotFoundError: If the ingest scripts cannot be found.
     """
+    # 1. Local execution — __file__ is available
     try:
         from_file = Path(__file__).resolve().parent
         if _folder_has_ingest_scripts(from_file):
             LOGGER.info("Bronze scripts directory (from __file__): %s", from_file)
             return from_file
     except (NameError, OSError, TypeError):
-        LOGGER.info("__file__ is not available; using Databricks notebook path")
+        LOGGER.info("__file__ is not available; using Databricks fallback")
 
-    notebook_folder = _databricks_notebook_folder()
-    if notebook_folder is not None and _folder_has_ingest_scripts(notebook_folder):
-        LOGGER.info(
-            "Bronze scripts directory (Databricks notebook): %s",
-            notebook_folder,
-        )
-        return notebook_folder
-
-    cwd = Path.cwd()
-    search_roots = (
-        cwd / "src" / "bronze",
-        cwd / "bronze",
-        cwd,
-        cwd.parent / "src" / "bronze",
+    # 2. Databricks — hardcoded workspace path (most reliable)
+    databricks_path = Path(
+        "/Workspace/Users/tushar.katyal@tothenew.com/"
+        "databricks-medallion-pipeline/src/bronze"
     )
-    for candidate in search_roots:
+    if _folder_has_ingest_scripts(databricks_path):
+        LOGGER.info("Bronze scripts directory (Databricks workspace): %s", databricks_path)
+        return databricks_path
+
+    # 3. CWD-based search as last resort
+    cwd = Path.cwd()
+    for candidate in (cwd / "src" / "bronze", cwd / "bronze", cwd):
         if _folder_has_ingest_scripts(candidate):
             LOGGER.info("Bronze scripts directory (cwd search): %s", candidate)
             return candidate.resolve()
 
     raise FileNotFoundError(
-        "Cannot resolve src/bronze. Databricks notebooks do not set __file__. "
-        "Place ingest_all.py next to 01_ingest_customers.py in the Repo, "
-        f"or run with cwd at the repo root. cwd={cwd}"
+        f"Cannot resolve src/bronze. cwd={cwd}, "
+        f"databricks_path={databricks_path}"
     )
 
 
