@@ -1,3 +1,4 @@
+# Databricks notebook source
 """Bronze ingest: customers.csv -> Delta on a Unity Catalog Volume.
 
 Run this file as a Databricks notebook (or paste into a notebook cell).

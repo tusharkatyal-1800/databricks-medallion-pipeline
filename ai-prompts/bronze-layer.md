@@ -175,19 +175,24 @@ The scripts follows the idempotency too.
 Lets run the script in Databricks to validate
 
 
-## Prompt 1:
+## Iteration 1: Add Databricks source notebook comment at the very first line
 
 **PROMPT SENT:**
-_TODO_
+Add databricks source notebook at the very first line of ingest_customer.py file and remember to add for all future py scripts 
 
 **AI RESPONSE SUMMARY:**
-_TODO_
+That is the Databricks marker so the file opens and runs as a notebook in the workspace.
 
-**YOUR EVALUATION:**
-_TODO_
+I also added this to .cursorrules and tool-specific/cursor-workflow/cursorrules.md, so later job scripts (Bronze/Silver/Gold/dashboard) will get the same first line. Shared modules (schemas.py, config.py) and local generators under src/data_generation/ stay without it, because those are imported or run on your laptop, not as Databricks notebooks.
+
+Documentation summary
+
+Added # Databricks notebook source as line 1 of src/bronze/01_ingest_customers.py.
+Recorded the same header as a Cursor rule for future Databricks job .py files.
+Left library modules and local data-generation scripts without the notebook header.
 
 
-## Prompt 1:
+## Prompt 4:
 
 **PROMPT SENT:**
 _TODO_

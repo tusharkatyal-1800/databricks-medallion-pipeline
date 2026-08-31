@@ -26,6 +26,11 @@ change that satisfies the request.
 - Use the canonical Volume root for every pipeline file.
 - Use `spark` / `dbutils` from the Databricks notebook runtime. Do not
   assume a local `SparkSession.builder` unless the user asked for local tests.
+- Every Databricks job/notebook `.py` file (Bronze, Silver, Gold, dashboard
+  jobs under `src/`) MUST start with this exact first line, with nothing
+  above it: `# Databricks notebook source`
+- Do not put that header on import-only modules (`schemas.py`, `config.py`,
+  `__init__.py`) or local-only scripts under `src/data_generation/`.
 - Create catalog/schema/volume if missing (`CREATE CATALOG/SCHEMA/VOLUME IF NOT
   EXISTS`) when the workspace allows it.
 
